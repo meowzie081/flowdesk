@@ -1,0 +1,11 @@
+import fs from 'node:fs';
+const site=new URL(process.env.SITE_URL||'invalid');
+const repo=new URL(process.env.REPOSITORY_URL||'invalid');
+if(site.protocol!=='https:'||site.username||site.password||site.search||site.hash||site.pathname!=='/')throw Error('SITE_URL must be an HTTPS origin');
+if(repo.origin!=='https://github.com'||!/^\/[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+\/?$/.test(repo.pathname)||repo.search||repo.hash||repo.username||repo.password)throw Error('REPOSITORY_URL must be a GitHub repository URL');
+const readme=new URL('../README.md',import.meta.url);
+const text=fs.readFileSync(readme,'utf8');
+const block=`<!-- project-links:start -->\n**Приложение:** [Открыть FlowDesk](${site.origin})  \n**Исходный код:** [GitHub](${repo.href})\n<!-- project-links:end -->`;
+if(!text.includes('<!-- project-links:start -->'))throw Error('README links marker missing');
+fs.writeFileSync(readme,text.replace(/<!-- project-links:start -->[\s\S]*?<!-- project-links:end -->/,()=>block));
+console.log('README project links updated');

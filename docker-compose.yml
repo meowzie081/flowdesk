@@ -1,0 +1,52 @@
+# Приложение и планировщик. База данных и Storage находятся в Supabase.
+# Для полноценного Supabase локально используйте `npx supabase start`
+# и укажите его URL/ключ в .env.
+services:
+  web:
+    build:
+      context: .
+      args:
+        NEXT_PUBLIC_GA_ID: ${NEXT_PUBLIC_GA_ID:-}
+        NEXT_PUBLIC_SUPABASE_URL: ${NEXT_PUBLIC_SUPABASE_URL}
+        NEXT_PUBLIC_SUPABASE_ANON_KEY: ${NEXT_PUBLIC_SUPABASE_ANON_KEY}
+    ports:
+      - "${FLOWDESK_BIND_ADDRESS:-0.0.0.0}:3000:3000"
+    env_file: .env
+    environment:
+      HOSTNAME: "0.0.0.0"
+      PORT: "3000"
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:3000/api/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+
+  scheduler:
+    build:
+      context: .
+      args:
+        NEXT_PUBLIC_GA_ID: ${NEXT_PUBLIC_GA_ID:-}
+        NEXT_PUBLIC_SUPABASE_URL: ${NEXT_PUBLIC_SUPABASE_URL}
+        NEXT_PUBLIC_SUPABASE_ANON_KEY: ${NEXT_PUBLIC_SUPABASE_ANON_KEY}
+    env_file: .env
+    command: ["node", "scripts/recurrence-worker.mjs"]
+    restart: unless-stopped
+    depends_on:
+      web:
+        condition: service_started
+
+  # Необязательно: локальная модель. Запуск: docker compose --profile ollama up
+  # затем: docker compose exec ollama ollama pull llama3.2
+  # и в .env: AI_PROVIDER=ollama, OLLAMA_URL=http://ollama:11434
+  ollama:
+    image: ollama/ollama
+    profiles: ["ollama"]
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama:/root/.ollama
+    restart: unless-stopped
+
+volumes:
+  ollama:

@@ -1,0 +1,3 @@
+import Templates from '@/components/Templates';
+import {createClient} from '@/lib/supabase/server';
+export default async function TemplatesPage({params}:{params:{depId:string}}){const sb=createClient();const {data:{user}}=await sb.auth.getUser();const [{data:boards},{data:member}]=await Promise.all([sb.from('boards').select('id,name').eq('department_id',params.depId).order('name'),sb.from('department_members').select('role').eq('department_id',params.depId).eq('user_id',user!.id).maybeSingle()]);return <Templates depId={params.depId} userId={user!.id} boards={boards??[]} canWrite={member?.role==='owner'||member?.role==='member'}/>}

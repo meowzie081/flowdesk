@@ -1,0 +1,97 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --font-inter: 'Inter Variable';
+  --font-mono: 'JetBrains Mono Variable';
+  color-scheme: light;
+  --ink: 36 44 58;
+  --paper: 245 247 250;
+  --line: 226 231 238;
+  --mute: 104 118 137;
+  --surface: 255 255 255;
+  --sunken-1: 248 250 252;
+  --sunken-2: 239 243 248;
+  --sunken-3: 220 227 236;
+  --ink-hover: 64 64 64;
+}
+
+.dark {
+  color-scheme: dark;
+  --ink: 229 235 245;
+  --paper: 15 23 36;
+  --line: 46 60 80;
+  --mute: 157 172 193;
+  --surface: 23 34 51;
+  --sunken-1: 20 30 46;
+  --sunken-2: 31 45 65;
+  --sunken-3: 50 65 85;
+  --ink-hover: 200 200 200;
+}
+
+.dark .text-red-600 {
+  color: #f87171;
+}
+
+body {
+  @apply bg-paper text-ink antialiased;
+}
+
+@layer components {
+  .btn {
+    @apply inline-flex items-center justify-center rounded-xl border border-line px-3 py-2 text-sm font-medium transition hover:border-orange-400 hover:bg-neutral-100 disabled:cursor-not-allowed disabled:opacity-40;
+  }
+  .btn-solid {
+    @apply btn border-orange-600 bg-orange-600 text-white hover:border-orange-700 hover:bg-orange-700;
+    color: #fff;
+  }
+  .card {
+    @apply rounded-2xl border border-line bg-white p-4 shadow-sm;
+  }
+  .input {
+    @apply w-full rounded-xl border border-line bg-white px-3 py-2 text-sm outline-none focus:border-orange-500 focus:ring-2 focus:ring-orange-500/15;
+  }
+}
+
+@layer components {
+  .board-column { border: 1px solid rgb(var(--line)); background: rgb(var(--surface) / .7); border-radius: 20px; }
+  .board-column:nth-child(4n + 1) { border-top: 4px solid #f1ae75; }
+  .board-column:nth-child(4n + 2) { border-top: 4px solid #93c5cb; }
+  .board-column:nth-child(4n + 3) { border-top: 4px solid #a9c899; }
+  .board-column:nth-child(4n) { border-top: 4px solid #b9a4d6; }
+  .task-card { transition: box-shadow .2s, transform .2s; }
+  .task-card:hover { box-shadow: 0 8px 20px rgb(85 52 30 / .08); transform: translateY(-2px); }
+  .task-card[data-priority="high"] { border-left: 3px solid #ea754d; }
+  .task-card[data-priority="medium"] { border-left: 3px solid #edc17f; }
+  .task-card[data-priority="low"] { border-left: 3px solid #96bfa3; }
+  .chat-own { background: rgb(var(--sunken-1)); border-color: #edb994; }
+  .dark .chat-own { border-color: #85543c; }
+  :focus-visible { outline: 2px solid #ea580c; outline-offset: 3px; }
+}
+
+@layer components {
+  .brand-mark { background: linear-gradient(145deg, #fb923c, #ea580c); box-shadow: 0 4px 12px rgb(234 88 12 / .18); }
+  .app-header { box-shadow: 0 1px 8px rgb(15 23 42 / .03); }
+  .sidebar-active { color: #c2410c; background: #fff1e7; box-shadow: inset 3px 0 #f97316; }
+  .dark .sidebar-active { color: #fdba74; background: rgb(249 115 22 / .12); }
+  .dark .text-orange-600 { color: #fbad72; }
+  .card { box-shadow: 0 2px 8px rgb(15 23 42 / .025); }
+  .calendar-panel { box-shadow: 0 4px 24px rgb(15 23 42 / .035); }
+  .calendar-cell { min-height: 118px; background: rgb(var(--surface)); }
+  .calendar-cell:not(:nth-child(7n)) { border-right: 1px solid rgb(var(--line)); }
+  .calendar-weekend { background: rgb(var(--sunken-1)); }
+  .calendar-outside { background: rgb(var(--sunken-1)); color: rgb(var(--mute)); }
+  .calendar-outside .calendar-task { opacity: .65; }
+  .calendar-selected { background: rgb(249 115 22 / .045); box-shadow: inset 0 0 0 2px rgb(249 115 22 / .45); }
+  .calendar-today { background: #ea580c; color: #fff; box-shadow: 0 2px 6px rgb(234 88 12 / .22); }
+  .calendar-task { display: block; border-left: 2px solid #d59a31; border-radius: 5px; padding: 5px 7px; font-size: 11px; line-height: 1.45; color: #765714; background: #fcf4de; transition: filter .15s; }
+  .calendar-task[data-priority="high"] { border-color: #ef806e; color: #a54434; background: #fff0ec; }
+  .calendar-task[data-priority="low"] { border-color: #62ad91; color: #276d55; background: #eaf6ef; }
+  .calendar-task:hover { filter: brightness(.96); }
+  .dark .calendar-task { color: #eacb85; background: rgb(217 167 65 / .13); }
+  .dark .calendar-task[data-priority="high"] { color: #f3b0a2; background: rgb(239 128 110 / .13); }
+  .dark .calendar-task[data-priority="low"] { color: #9bd1b9; background: rgb(98 173 145 / .13); }
+  @media (max-width: 639px) { .calendar-cell { min-height: 100px; } }
+  @media (prefers-reduced-motion: reduce) { .task-card, .calendar-task { transition: none; } .task-card:hover { transform: none; } }
+}
