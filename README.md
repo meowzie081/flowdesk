@@ -1,7 +1,8 @@
 # FlowDesk
 
 <!-- project-links:start -->
-**Публикация:** публичная ссылка и GitHub-репозиторий ещё не настроены. После публикации запустите `scripts/project-links.mjs` по инструкции в [DEPLOYMENT.md](docs/DEPLOYMENT.md).
+**Приложение:** [Открыть FlowDesk](https://flowdesk-alpha-teal.vercel.app)  
+**Исходный код:** [GitHub](https://github.com/meowzie081/flowdesk)
 <!-- project-links:end -->
 
 [Деплой и CI/CD](docs/DEPLOYMENT.md) · [GA4](docs/ANALYTICS.md) · [Работа с AI](docs/AI_DEVELOPMENT.md) · [Сценарий защиты](docs/DEMO.md) · [Требования проекта](docs/REQUIREMENTS.md)
