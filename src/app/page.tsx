@@ -69,7 +69,7 @@ export default async function Home() {
       <ul className="mt-6 grid gap-3 sm:grid-cols-2">
         {(deps ?? []).map((d) => (
           <li key={d.id}>
-            <Link href={`/d/${d.id}`} className="card block hover:border-ink">
+            <Link href={`/d/${d.id}/my-day`} className="card block hover:border-ink">
               {d.name}
             </Link>
           </li>

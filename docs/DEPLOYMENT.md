@@ -2,9 +2,15 @@
 
 ## Состояние поставки
 
-Подготовлены файлы публикации и автоматического деплоя. Реальный репозиторий, домен и сервер не подключены. Интеграции GitHub/Vercel в среде подготовки отключены администратором, поэтому успешный production-деплой не заявляется.
+Базовая версия опубликована: https://flowdesk-alpha-teal.vercel.app, исходники: https://github.com/meowzie081/flowdesk. Новое обновление «Мой день» пока подготовлено локально. Сначала примените `0013_my_day.sql`, затем опубликуйте обновлённый код.
 
-Полная версия включает `web` и постоянный `scheduler`. Основной путь — Linux VPS с Docker Compose и внешним Supabase. База и Storage не хранятся в контейнерах приложения.
+## Текущая схема Vercel + Supabase
+
+Веб-приложение работает на Vercel, данные, Auth, Storage и Realtime — в Supabase. Supabase Cron вызывает `public.run_due_recurring()` каждую минуту. Для этой схемы не нужен постоянный Docker scheduler. Build Command в Vercel: `npm run typecheck && npm test && npm run test:db && npm run build`.
+
+Инструкции ниже для VPS остаются альтернативным вариантом размещения.
+
+При размещении на VPS Docker Compose запускает `web` и постоянный `scheduler`. Этот вариант использует Linux VPS и внешний Supabase. База и Storage не хранятся в контейнерах приложения.
 
 ## 1. Публичный GitHub
 
@@ -27,7 +33,7 @@ git push -u origin main
 
 ## 2. Supabase
 
-Создайте или используйте рабочий проект, выполните миграции `0001`–`0012` по порядку. Уже применённые миграции повторно не запускайте. В Auth укажите HTTPS Site URL приложения и redirect URL `https://ВАШ_ДОМЕН/auth/callback`. Для Google OAuth включите провайдера и настройте redirect URL Supabase в Google Cloud.
+Создайте или используйте рабочий проект, выполните миграции `0001`–`0013` по порядку. Уже применённые миграции повторно не запускайте. В Auth укажите HTTPS Site URL приложения и redirect URL `https://ВАШ_ДОМЕН/auth/callback`. Для Google OAuth включите провайдера и настройте redirect URL Supabase в Google Cloud.
 
 ## 3. Сервер и HTTPS
 
@@ -88,8 +94,8 @@ git push
 
 Проверьте `/api/health`, HTTPS, регистрацию/вход, Google OAuth, две сессии чата, приватность файлов другого отдела, создание пользователя владельцем, выполнение повторения scheduler и GA4 Realtime. `/api/health` подтверждает работу web-процесса, а не всей цепочки Supabase/Storage/AI.
 
-## Vercel как альтернативный вариант
+## Vercel и планировщик
 
-Next.js web можно разместить на Vercel, но `scheduler` не запустится как постоянный процесс. Для полной функциональности его нужно оставить на отдельном сервере или заменить защищённым серверным планировщиком. В поставке автоматический деплой настроен для VPS. Не подключайте параллельный автодеплой другого сервиса, обходящий успешный `check`.
+В текущей Vercel-установке постоянный Docker `scheduler` заменён Supabase Cron. Не запускайте второй планировщик без необходимости. Для автоматической публикации используйте подключённый GitHub-репозиторий и Build Command с проверками, указанный выше. VPS workflow нужен только при выборе VPS.
 
 Источники: https://docs.github.com/en/actions ; https://docs.docker.com/reference/cli/docker/compose/up/ ; https://caddyserver.com/docs/quick-starts/reverse-proxy

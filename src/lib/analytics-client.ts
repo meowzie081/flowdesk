@@ -12,7 +12,7 @@ export function readConsent():Consent|null{
 }
 export function analyticsSection(path:string){
  const department=path.match(/^\/d\/[^/]+(?:\/([^/?#]+))?\/?$/);
- const names:Record<string,string>={overview:'Обзор',board:'Канбан',chat:'Чат',files:'Файлы',search:'Поиск',tasks:'Мои задачи',calendar:'Календарь',templates:'Шаблоны',archive:'Архив',summary:'Сводка',team:'Команда',audit:'Журнал'};
+ const names:Record<string,string>={'my-day':'Мой день',overview:'Обзор',board:'Канбан',chat:'Чат',files:'Файлы',search:'Поиск',tasks:'Мои задачи',calendar:'Календарь',templates:'Шаблоны',archive:'Архив',summary:'Сводка',team:'Команда',audit:'Журнал'};
  if(department){const key=department[1]||'overview';if(names[key])return{path:`/app/${key}`,title:`FlowDesk · ${names[key]}`}}
  if(path==='/')return{path:'/',title:'FlowDesk · Отделы'};
  if(path==='/login')return{path:'/login',title:'FlowDesk · Вход'};

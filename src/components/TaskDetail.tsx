@@ -6,6 +6,8 @@ import { z } from 'zod';
 import { createClient } from '@/lib/supabase/client';
 import type { Label, Member, Task } from './Board';
 import UserName from './UserName';
+import {resumeKey} from '@/lib/my-day';
+import TaskHelp from './TaskHelp';
 import TaskWorkflow from './TaskWorkflow';
 import FilePreview from './FilePreview';
 import TaskHistory from './TaskHistory';
@@ -104,6 +106,8 @@ export default function TaskDetail({
     const oldOverflow = document.body.style.overflow; document.body.style.overflow = 'hidden';
     return () => { document.body.style.overflow = oldOverflow; previous?.focus(); };
   }, []);
+
+  useEffect(() => {try {localStorage.setItem(resumeKey(departmentId,currentUserId),task.id)} catch {}}, [departmentId,currentUserId,task.id]);
 
   async function loadChecklist() {
     const {data,error} = await supabase.from('task_checklist').select('id, title, is_done, position').eq('task_id',task.id).order('position').order('id');
@@ -571,6 +575,7 @@ export default function TaskDetail({
           )}
         </section>
 
+        <TaskHelp taskId={task.id} userId={currentUserId} canWrite={canWrite&&!task.archived_at} members={members}/>
         <TaskWorkflow task={task} depId={departmentId} canWrite={canWrite} onArchived={()=>{onSaved({...task,archived_at:task.archived_at?null:new Date().toISOString()});onClose()}}/>
         <TaskHistory taskId={task.id} members={members}/>
         {error && <p role="alert" className="mt-3 text-sm text-red-600">{error}</p>}

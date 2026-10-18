@@ -10,7 +10,7 @@ interface Notice {
   department_id: string;
   task_id: string | null;
   message_id: string | null;
-  kind: 'assigned' | 'comment' | 'mention' | 'reply';
+  kind: 'assigned' | 'comment' | 'mention' | 'reply' | 'help_request' | 'help_response';
   title: string;
   body: string | null;
   read_at: string | null;
@@ -97,7 +97,7 @@ export default function NotificationBell({ userId }: { userId: string }) {
                     }`}
                   >
                     <span className="block text-xs text-mute">
-                      {{assigned:'Вам назначена задача',comment:'Новый комментарий',mention:'Вас упомянули',reply:'Ответ в обсуждении'}[n.kind]}
+                      {{assigned:'Вам назначена задача',comment:'Новый комментарий',mention:'Вас упомянули',reply:'Ответ в обсуждении',help_request:'Нужна ваша помощь',help_response:'Ответ на запрос помощи'}[n.kind]}
                     </span>
                     <span className="block font-medium">{n.title}</span>
                     {n.body && <span className="block truncate text-xs text-mute">{n.body}</span>}
