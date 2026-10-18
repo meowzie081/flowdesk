@@ -10,3 +10,6 @@ next-env.d.ts
 .vercel
 .DS_Store
 release.tar.gz
+
+# Desktop installers
+desktop/dist/

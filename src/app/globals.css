@@ -95,3 +95,15 @@ body {
   @media (max-width: 639px) { .calendar-cell { min-height: 100px; } }
   @media (prefers-reduced-motion: reduce) { .task-card, .calendar-task { transition: none; } .task-card:hover { transform: none; } }
 }
+
+/* Telegram controls and device safe areas must not cover app controls. */
+html[data-client="telegram"] body {
+  min-height: var(--flowdesk-tg-height, 100dvh);
+  padding-top: var(--flowdesk-tg-top, 0px);
+  padding-right: var(--flowdesk-tg-right, 0px);
+  padding-bottom: var(--flowdesk-tg-bottom, 0px);
+  padding-left: var(--flowdesk-tg-left, 0px);
+}
+html[data-client="telegram"] .min-h-screen {
+  min-height: calc(var(--flowdesk-tg-height, 100dvh) - var(--flowdesk-tg-top, 0px) - var(--flowdesk-tg-bottom, 0px));
+}

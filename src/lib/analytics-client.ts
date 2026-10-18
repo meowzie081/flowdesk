@@ -15,6 +15,7 @@ export function analyticsSection(path:string){
  const names:Record<string,string>={'my-day':'Мой день',overview:'Обзор',board:'Канбан',chat:'Чат',files:'Файлы',search:'Поиск',tasks:'Мои задачи',calendar:'Календарь',templates:'Шаблоны',archive:'Архив',summary:'Сводка',team:'Команда',audit:'Журнал'};
  if(department){const key=department[1]||'overview';if(names[key])return{path:`/app/${key}`,title:`FlowDesk · ${names[key]}`}}
  if(path==='/')return{path:'/',title:'FlowDesk · Отделы'};
+ if(path==='/telegram')return{path:'/telegram',title:'FlowDesk · Telegram'};
  if(path==='/login')return{path:'/login',title:'FlowDesk · Вход'};
  if(path==='/profile')return{path:'/profile',title:'FlowDesk · Профиль'};
  return{path:'/other',title:'FlowDesk'};

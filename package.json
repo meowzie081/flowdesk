@@ -10,7 +10,11 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:db": "node scripts/test-db.mjs",
-    "worker": "node scripts/recurrence-worker.mjs"
+    "worker": "node scripts/recurrence-worker.mjs",
+    "telegram:setup": "node scripts/telegram-setup.mjs",
+    "desktop:dev": "npm --prefix desktop start",
+    "desktop:test": "npm --prefix desktop test",
+    "desktop:dist": "npm --prefix desktop run dist"
   },
   "dependencies": {
     "@fontsource-variable/inter": "^5.1.0",

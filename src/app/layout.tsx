@@ -3,6 +3,7 @@ import '@fontsource-variable/inter';
 import '@fontsource-variable/jetbrains-mono';
 import './globals.css';
 import ServiceWorker from '@/components/ServiceWorker';
+import TelegramBridge from '@/components/TelegramBridge';
 import GoogleAnalytics from '@/components/GoogleAnalytics';
 
 
@@ -32,6 +33,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       </head>
       <body className="font-sans">
         {children}
+        <TelegramBridge />
         <ServiceWorker />
         <GoogleAnalytics />
       </body>

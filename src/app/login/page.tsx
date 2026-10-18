@@ -1,10 +1,13 @@
 'use client';
 
-import { useState } from 'react';
+import {nativeClient,type NativeClient} from '@/lib/native-client';
+import { useEffect, useState } from 'react';
 import { signInEmail, isManagedEmail } from '@/lib/accounts';
 import { createClient } from '@/lib/supabase/client';
 
 export default function LoginPage() {
+  const [client,setClient]=useState<NativeClient>(null);
+  useEffect(()=>{setClient(nativeClient());const timer=setTimeout(()=>setClient(nativeClient()),500);return()=>clearTimeout(timer)},[]);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [mode, setMode] = useState<'in' | 'up'>('in');
@@ -69,9 +72,10 @@ export default function LoginPage() {
         <button className="btn-solid" disabled={busy}>
           {mode === 'in' ? 'Войти' : 'Создать аккаунт'}
         </button>
-        <button type="button" className="btn" onClick={google}>
+        {!client&&<button type="button" className="btn" onClick={google}>
           Войти через Google
-        </button>
+        </button>}
+        {client&&<p className="text-xs text-mute">Для входа в приложение используйте логин/email и пароль FlowDesk. Вход через Google доступен на сайте в обычном браузере.</p>}
       </form>
       <button
         className="text-left text-sm text-mute underline"

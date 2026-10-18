@@ -24,6 +24,7 @@ jobs:
       - run: npm ci
       - run: npm run typecheck
       - run: npm test
+      - run: npm run desktop:test
       - run: npm run test:db
       - run: npm run build
   deploy:

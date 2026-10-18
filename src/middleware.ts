@@ -1,11 +1,12 @@
 import { createServerClient, type CookieOptions } from '@supabase/ssr';
 import { NextResponse, type NextRequest } from 'next/server';
 
-const PUBLIC_PATHS = ['/login', '/auth'];
+const PUBLIC_PATHS = ['/login', '/auth', '/telegram'];
 
 type CookieToSet = { name: string; value: string; options: CookieOptions };
 
 export async function middleware(request: NextRequest) {
+  if(request.nextUrl.pathname==='/api/telegram/webhook')return NextResponse.next({request});
   let response = NextResponse.next({ request });
 
   const supabase = createServerClient(
