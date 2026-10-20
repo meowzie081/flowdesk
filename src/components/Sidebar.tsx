@@ -9,6 +9,7 @@ const items:{suffix:string;label:string;icon:IconName}[]=[
  {suffix:'/search',label:'Поиск',icon:'search'},{suffix:'/tasks',label:'Мои задачи',icon:'tasks'},
  {suffix:'/calendar',label:'Календарь',icon:'calendar'},{suffix:'/templates',label:'Шаблоны и повторы',icon:'repeat'},
  {suffix:'/archive',label:'Архив',icon:'archive'},{suffix:'/summary',label:'Сводка',icon:'summary'},
+ {suffix:'/announcements',label:'Объявления',icon:'bell'},
  {suffix:'/team',label:'Команда',icon:'team'},
 ];
 export default function Sidebar({depId,departments}:{depId:string;departments:{id:string;name:string}[]}){

@@ -41,3 +41,25 @@ self.addEventListener('fetch', (event) => {
     event.respondWith(fetch(req).catch(() => caches.match(OFFLINE)));
   }
 });
+
+// Every received push displays a generic notification; work content stays in the app.
+self.addEventListener('push', (event) => {
+  let payload = {};
+  try { payload = event.data ? event.data.json() : {}; } catch {}
+  event.waitUntil(self.registration.showNotification('FlowDesk', {
+    body: 'Новое уведомление. Откройте приложение.',
+    icon: '/icons/icon-192.png', badge: '/icons/icon-192.png',
+    tag: typeof payload.tag === 'string' ? payload.tag.slice(0, 100) : 'flowdesk',
+    data: {url: '/'},
+  }));
+});
+self.addEventListener('notificationclick', (event) => {
+  event.notification.close();
+  event.waitUntil((async () => {
+    const windows = await self.clients.matchAll({type: 'window', includeUncontrolled: true});
+    for (const client of windows) {
+      if (new URL(client.url).origin === self.location.origin && 'focus' in client) return client.focus();
+    }
+    return self.clients.openWindow('/');
+  })());
+});

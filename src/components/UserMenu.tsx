@@ -50,7 +50,7 @@ export default function UserMenu({ look, email }: { look: ProfileLook; email?: s
             onClick={() => setOpen(false)}
             className="block rounded px-3 py-2 text-sm hover:bg-neutral-100"
           >
-            Профиль
+            Профиль и уведомления
           </Link>
           <form action="/auth/signout" method="post">
             <button role="menuitem" className="block w-full rounded px-3 py-2 text-left text-sm hover:bg-neutral-100">

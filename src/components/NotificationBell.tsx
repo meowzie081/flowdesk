@@ -1,5 +1,6 @@
 'use client';
 
+import {notificationHref} from '@/lib/notifications/shared';
 import Link from 'next/link';
 import Icon from './Icon';
 import { useEffect, useMemo, useState } from 'react';
@@ -10,14 +11,15 @@ interface Notice {
   department_id: string;
   task_id: string | null;
   message_id: string | null;
-  kind: 'assigned' | 'comment' | 'mention' | 'reply' | 'help_request' | 'help_response';
+  campaign_id: string | null;
+  kind: 'assigned' | 'comment' | 'mention' | 'reply' | 'help_request' | 'help_response' | 'announcement';
   title: string;
   body: string | null;
   read_at: string | null;
   created_at: string;
 }
 
-const FIELDS = 'id, department_id, task_id, message_id, kind, title, body, read_at, created_at';
+const FIELDS = 'id, department_id, task_id, message_id, campaign_id, kind, title, body, read_at, created_at';
 
 export default function NotificationBell({ userId }: { userId: string }) {
   const supabase = useMemo(() => createClient(), []);
@@ -75,7 +77,7 @@ export default function NotificationBell({ userId }: { userId: string }) {
       {open && (
         <div className="absolute right-0 z-20 mt-2 w-80 max-w-[90vw] rounded-lg border border-line bg-white p-2 shadow-lg">
           <div className="mb-1 flex items-center justify-between px-2 py-1">
-            <span className="text-sm font-medium">Уведомления</span>
+            <Link href="/profile#notifications" className="text-sm font-medium underline" onClick={() => setOpen(false)}>Уведомления · настройки</Link>
             {unread > 0 && (
               <button className="text-xs text-mute hover:text-ink" onClick={markAllRead}>
                 Прочитать все
@@ -90,14 +92,14 @@ export default function NotificationBell({ userId }: { userId: string }) {
               {items.map((n) => (
                 <li key={n.id}>
                   <Link
-                    href={n.message_id ? `/d/${n.department_id}/chat?message=${n.message_id}` : `/d/${n.department_id}/board${n.task_id ? `?task=${n.task_id}` : ''}`}
+                    href={notificationHref(n)}
                     onClick={async () => { setOpen(false); const now=new Date().toISOString(); const {error}=await supabase.from('notifications').update({read_at:now}).eq('id',n.id);if(!error){setItems(prev=>prev.map(item=>item.id===n.id?{...item,read_at:now}:item));if(!n.read_at)setUnread(v=>Math.max(0,v-1));} }}
                     className={`block rounded px-2 py-2 text-sm hover:bg-neutral-100 ${
                       n.read_at ? 'text-mute' : ''
                     }`}
                   >
                     <span className="block text-xs text-mute">
-                      {{assigned:'Вам назначена задача',comment:'Новый комментарий',mention:'Вас упомянули',reply:'Ответ в обсуждении',help_request:'Нужна ваша помощь',help_response:'Ответ на запрос помощи'}[n.kind]}
+                      {{assigned:'Вам назначена задача',comment:'Новый комментарий',mention:'Вас упомянули',reply:'Ответ в обсуждении',help_request:'Нужна ваша помощь',help_response:'Ответ на запрос помощи',announcement:'Объявление отдела'}[n.kind]}
                     </span>
                     <span className="block font-medium">{n.title}</span>
                     {n.body && <span className="block truncate text-xs text-mute">{n.body}</span>}

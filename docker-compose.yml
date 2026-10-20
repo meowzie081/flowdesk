@@ -36,6 +36,24 @@ services:
       web:
         condition: service_started
 
+  # Включите после настройки ключей: docker compose --profile notifications up -d --build
+  notifications:
+    profiles: ["notifications"]
+    build:
+      context: .
+      args:
+        NEXT_PUBLIC_GA_ID: ${NEXT_PUBLIC_GA_ID:-}
+        NEXT_PUBLIC_SUPABASE_URL: ${NEXT_PUBLIC_SUPABASE_URL}
+        NEXT_PUBLIC_SUPABASE_ANON_KEY: ${NEXT_PUBLIC_SUPABASE_ANON_KEY}
+    env_file: .env
+    environment:
+      NOTIFICATION_DISPATCH_URL: http://web:3000/api/notifications/dispatch
+    command: ["node", "scripts/notifications-dispatch.mjs", "--loop"]
+    restart: unless-stopped
+    depends_on:
+      web:
+        condition: service_healthy
+
   # Необязательно: локальная модель. Запуск: docker compose --profile ollama up
   # затем: docker compose exec ollama ollama pull llama3.2
   # и в .env: AI_PROVIDER=ollama, OLLAMA_URL=http://ollama:11434

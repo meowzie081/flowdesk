@@ -1,3 +1,4 @@
+import Onboarding from '@/components/Onboarding';
 import Link from 'next/link';
 import { revalidatePath } from 'next/cache';
 import { createClient } from '@/lib/supabase/server';
@@ -62,6 +63,7 @@ export default async function Home() {
 
   return (
     <main className="mx-auto max-w-3xl px-4 py-10">
+      {user && <Onboarding userId={user.id}/>}
       <div className="flex items-center justify-between gap-3">
         <h1 className="text-2xl font-semibold tracking-tight">Ваши отделы</h1>
         <UserMenu look={look} email={user?.email} />

@@ -6,7 +6,7 @@ const PUBLIC_PATHS = ['/login', '/auth', '/telegram'];
 type CookieToSet = { name: string; value: string; options: CookieOptions };
 
 export async function middleware(request: NextRequest) {
-  if(request.nextUrl.pathname==='/api/telegram/webhook')return NextResponse.next({request});
+  if(['/api/telegram/webhook','/api/notifications/dispatch'].includes(request.nextUrl.pathname))return NextResponse.next({request});
   let response = NextResponse.next({ request });
 
   const supabase = createServerClient(
@@ -32,6 +32,7 @@ export async function middleware(request: NextRequest) {
 
   const isPublic = PUBLIC_PATHS.some((p) => request.nextUrl.pathname.startsWith(p));
   if (!user && !isPublic) {
+    if(request.nextUrl.pathname.startsWith('/api/'))return NextResponse.json({error:'Войдите в аккаунт'},{status:401,headers:{'Cache-Control':'no-store'}});
     const url = request.nextUrl.clone();
     url.pathname = '/login';
     return NextResponse.redirect(url);

@@ -1,4 +1,5 @@
 import { redirect } from 'next/navigation';
+import Onboarding from '@/components/Onboarding';
 import Nav from '@/components/Nav';
 import Sidebar from '@/components/Sidebar';
 import { createClient } from '@/lib/supabase/server';
@@ -35,6 +36,7 @@ export default async function DepLayout({
   const {data:departments} = await supabase.from('departments').select('id, name').order('name');
   return (
     <>
+      <Onboarding userId={user.id}/>
       <Nav depId={dep.id} name={dep.name} userId={user.id} look={look} email={user.email} />
       <div className="mx-auto flex max-w-[1600px] flex-col lg:flex-row"><Sidebar depId={dep.id} departments={departments??[]}/><main className="min-w-0 flex-1 px-4 py-6 sm:px-6 lg:px-8 lg:py-8">{children}</main></div>
     </>

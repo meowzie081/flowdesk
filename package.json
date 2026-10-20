@@ -14,7 +14,9 @@
     "telegram:setup": "node scripts/telegram-setup.mjs",
     "desktop:dev": "npm --prefix desktop start",
     "desktop:test": "npm --prefix desktop test",
-    "desktop:dist": "npm --prefix desktop run dist"
+    "desktop:dist": "npm --prefix desktop run dist",
+    "notifications:keys": "node scripts/notification-keys.mjs",
+    "notifications:dispatch": "node scripts/notifications-dispatch.mjs"
   },
   "dependencies": {
     "@fontsource-variable/inter": "^5.1.0",
@@ -24,6 +26,7 @@
     "next": "^14.2.15",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
+    "web-push": "^3.6.7",
     "zod": "^3.23.8"
   },
   "devDependencies": {
@@ -31,6 +34,7 @@
     "@types/node": "^20.14.0",
     "@types/react": "^18.3.3",
     "@types/react-dom": "^18.3.0",
+    "@types/web-push": "^3.6.4",
     "autoprefixer": "^10.4.20",
     "eslint": "^8.57.0",
     "eslint-config-next": "^14.2.15",

@@ -1,3 +1,5 @@
+import NotificationSettings from '@/components/NotificationSettings';
+import Onboarding from '@/components/Onboarding';
 import Link from 'next/link';
 import { accountLabel } from '@/lib/accounts';
 import { redirect } from 'next/navigation';
@@ -31,6 +33,8 @@ export default async function ProfilePage() {
         <ProfileForm userId={user.id} initial={{ name: look.name, icon: look.icon ?? null, color: look.color ?? null }} />
       </div>
       <PasswordForm/>
+      <NotificationSettings/>
+      <Onboarding userId={user.id} auto={false}/>
       <form action="/auth/signout" method="post" className="mt-10 border-t border-line pt-6">
         <button className="btn">Выйти из аккаунта</button>
       </form>
