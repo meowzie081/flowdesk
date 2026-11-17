@@ -16,8 +16,10 @@ export default function LoginPage() {
   const [busy, setBusy] = useState(false);
 
   useEffect(()=>{
-    if(new URLSearchParams(window.location.search).get('auth_error'))
+    const params=new URLSearchParams(window.location.search);
+    if(params.get('auth_error'))
       setError('Ссылка из письма недействительна или устарела. Войдите или зарегистрируйтесь повторно.');
+    if(params.get('mode')==='up')setMode('up');
   },[]);
 
   async function submit(e: React.FormEvent) {

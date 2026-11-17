@@ -31,7 +31,7 @@ export async function middleware(request: NextRequest) {
     data: { user },
   } = await supabase.auth.getUser();
 
-  const isPublic = PUBLIC_PATHS.some((p) => request.nextUrl.pathname.startsWith(p));
+  const isPublic = request.nextUrl.pathname === '/' || PUBLIC_PATHS.some((p) => request.nextUrl.pathname.startsWith(p));
   if (!user && !isPublic) {
     if(request.nextUrl.pathname.startsWith('/api/'))return NextResponse.json({error:'Войдите в аккаунт'},{status:401,headers:{'Cache-Control':'no-store'}});
     const url = request.nextUrl.clone();
