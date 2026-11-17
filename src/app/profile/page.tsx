@@ -17,10 +17,25 @@ export default async function ProfilePage() {
 
   const { data: profile } = await supabase
     .from('profiles')
-    .select('full_name, avatar_icon, name_color')
+    .select('*')
     .eq('id', user.id)
     .maybeSingle();
   const look = lookFromRow(profile, user.email?.split('@')[0] ?? '');
+
+  if (profile?.must_change_password) {
+    return (
+      <main className="mx-auto max-w-2xl px-4 py-8">
+        <h1 className="text-2xl font-semibold tracking-tight">Смените временный пароль</h1>
+        <p className="mt-2 text-sm text-mute">
+          Владелец отдела выдал вам временный пароль. Задайте свой пароль, чтобы продолжить работу.
+        </p>
+        <PasswordForm/>
+        <form action="/auth/signout" method="post" className="mt-10 border-t border-line pt-6">
+          <button className="btn">Выйти из аккаунта</button>
+        </form>
+      </main>
+    );
+  }
 
   return (
     <main className="mx-auto max-w-2xl px-4 py-8">

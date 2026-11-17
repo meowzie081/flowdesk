@@ -12,11 +12,18 @@ export default function LoginPage() {
   const [password, setPassword] = useState('');
   const [mode, setMode] = useState<'in' | 'up'>('in');
   const [error, setError] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+
+  useEffect(()=>{
+    if(new URLSearchParams(window.location.search).get('auth_error'))
+      setError('Ссылка из письма недействительна или устарела. Войдите или зарегистрируйтесь повторно.');
+  },[]);
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
+    setNotice(null);
     let identity:string;
     try {identity = mode==='in' ? signInEmail(email) : email.trim().toLowerCase();} catch {return setError('Введите email или логин из 3–32 латинских букв, цифр, точек, дефисов и подчёркиваний');}
     if(mode==='up'&&(!/^\S+@\S+\.\S+$/.test(identity)||isManagedEmail(identity)))return setError('Для самостоятельной регистрации нужен ваш email');
@@ -24,10 +31,19 @@ export default function LoginPage() {
     setBusy(true);
     try {
       const supabase = createClient();
-      const { error } = mode === 'in'
+      const { data, error } = mode === 'in'
         ? await supabase.auth.signInWithPassword({ email:identity, password })
-        : await supabase.auth.signUp({ email:identity, password });
-      if (error) return setError(mode==='in'?'Не удалось войти. Проверьте логин/email и пароль.':error.message);
+        : await supabase.auth.signUp({ email:identity, password, options:{emailRedirectTo:`${window.location.origin}/auth/callback`} });
+      if (error) {
+        if(mode==='in'&&/confirm/i.test(error.message))return setError('Email не подтверждён. Перейдите по ссылке из письма, затем войдите.');
+        return setError(mode==='in'?'Не удалось войти. Проверьте логин/email и пароль.':error.message);
+      }
+      if (mode==='up'&&!data.session) {
+        setNotice(`Письмо с подтверждением отправлено на ${identity}. Перейдите по ссылке из письма, затем войдите.`);
+        setMode('in');
+        setPassword('');
+        return;
+      }
       window.location.href = '/';
     } catch {setError('Не удалось связаться с сервером. Попробуйте ещё раз');}
     finally {setBusy(false);}
@@ -69,6 +85,7 @@ export default function LoginPage() {
           autoComplete={mode === 'in' ? 'current-password' : 'new-password'}
         />
         {error && <p className="text-sm text-red-600">{error}</p>}
+        {notice && <p className="text-sm text-ink">{notice}</p>}
         <button className="btn-solid" disabled={busy}>
           {mode === 'in' ? 'Войти' : 'Создать аккаунт'}
         </button>

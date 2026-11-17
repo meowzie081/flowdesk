@@ -2,7 +2,7 @@
 
 ## Состояние поставки
 
-Базовая версия опубликована: https://flowdesk-alpha-teal.vercel.app, исходники: https://github.com/meowzie081/flowdesk. Обновление email/Web Push и обучения подготовлено в исходниках. Если 0001–0013 уже применены, выполните только `0014_delivery_onboarding.sql`, затем опубликуйте код. Настройка внешней доставки и отдельного Cron: [NOTIFICATIONS.md](NOTIFICATIONS.md).
+Базовая версия опубликована: https://flowdesk-alpha-teal.vercel.app, исходники: https://github.com/meowzie081/flowdesk. В исходниках также: Realtime доски, cron через GitHub Actions, rate limiting, Sentry и принудительная смена временного пароля. Если 0001–0014 уже применены, выполните `0016_fix_department_insert_returning.sql`, `0017_rate_limits.sql` и `0018_force_password_change.sql`, затем опубликуйте код. Настройка внешней доставки и отдельного Cron: [NOTIFICATIONS.md](NOTIFICATIONS.md).
 
 ## Текущая схема Vercel + Supabase
 
@@ -33,7 +33,7 @@ git push -u origin main
 
 ## 2. Supabase
 
-Создайте или используйте рабочий проект, выполните миграции `0001`–`0014` по порядку. Уже применённые миграции повторно не запускайте. В Auth укажите HTTPS Site URL приложения и redirect URL `https://ВАШ_ДОМЕН/auth/callback`. Для Google OAuth включите провайдера и настройте redirect URL Supabase в Google Cloud.
+Создайте или используйте рабочий проект, выполните миграции `0001`–`0018` по порядку. Уже применённые миграции повторно не запускайте. В Auth укажите HTTPS Site URL приложения и redirect URL `https://ВАШ_ДОМЕН/auth/callback`. Для Google OAuth включите провайдера и настройте redirect URL Supabase в Google Cloud.
 
 ## 3. Сервер и HTTPS
 

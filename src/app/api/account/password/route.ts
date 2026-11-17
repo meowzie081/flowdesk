@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { createClient as authClient } from '@supabase/supabase-js';
 import { createClient } from '@/lib/supabase/server';
+import { createAdminClient } from '@/lib/supabase/admin';
 import { sameOrigin } from '@/lib/http';
 import { checkRateLimit, tooManyRequests } from '@/lib/rate-limit';
 import { z } from 'zod';
@@ -16,6 +17,11 @@ export async function POST(req:Request) {
   if(verified.error||verified.data.user?.id!==user.id)return NextResponse.json({error:'Проверьте текущий пароль'},{status:400});
   const changed=await isolated.auth.updateUser({password:parsed.data.password});
   if(changed.error)return NextResponse.json({error:'Не удалось сменить пароль. Проверьте требования безопасности Supabase'},{status:400});
+  const admin=createAdminClient();
+  if(admin){
+   const {error}=await admin.from('profiles').update({must_change_password:false}).eq('id',user.id);
+   if(error)return NextResponse.json({error:'Пароль изменён, но не удалось обновить профиль. Войдите заново и повторите смену'},{status:502});
+  }
   await sb.auth.signOut({scope:'local'});
   return NextResponse.json({ok:true},{headers:{'Cache-Control':'no-store'}});
  }catch{return NextResponse.json({error:'Не удалось связаться с сервером авторизации'},{status:502})}

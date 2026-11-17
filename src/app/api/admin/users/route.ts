@@ -19,6 +19,7 @@ export async function POST(request:Request) {
    return {
     createUser:async(input)=>{const {data,error}=await admin.auth.admin.createUser(input);return {id:data.user?.id??null,error}},
     registerLogin:async(input)=>{const {error}=await admin.from('managed_accounts').insert(input);return error},
+    requirePasswordChange:async(id)=>{const {error}=await admin.from('profiles').update({must_change_password:true}).eq('id',id);return error},
     deleteUser:async(id)=>{const {error}=await admin.auth.admin.deleteUser(id);return error},
    };
   },

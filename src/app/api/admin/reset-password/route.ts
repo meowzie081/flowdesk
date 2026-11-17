@@ -18,5 +18,7 @@ export async function POST(req:Request) {
  catch {success=false;}
  const finished=await admin.rpc('finish_password_reset',{event,success});
  if(!success)return NextResponse.json({error:'Не удалось сбросить пароль. Проверьте требования Supabase Auth'},{status:502});
- return NextResponse.json({ok:true,warning:finished.error?'Пароль изменён; в журнале сохранён запрос без подтверждённого результата':undefined},{headers:{'Cache-Control':'no-store'}});
+ const flagged=await admin.from('profiles').update({must_change_password:true}).eq('id',parsed.data.userId);
+ const warning=finished.error?'Пароль изменён; в журнале сохранён запрос без подтверждённого результата':flagged.error?'Пароль изменён, но отметка о временном пароле не сохранена':undefined;
+ return NextResponse.json({ok:true,warning},{headers:{'Cache-Control':'no-store'}});
 }

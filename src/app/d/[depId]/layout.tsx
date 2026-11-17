@@ -28,9 +28,10 @@ export default async function DepLayout({
 
   const { data: profile } = await supabase
     .from('profiles')
-    .select('full_name, avatar_icon, name_color')
+    .select('*')
     .eq('id', user.id)
     .maybeSingle();
+  if (profile?.must_change_password) redirect('/profile');
   const look = lookFromRow(profile, user.email?.split('@')[0] ?? 'Профиль');
 
   const {data:departments} = await supabase.from('departments').select('id, name').order('name');

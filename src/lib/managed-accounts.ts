@@ -3,6 +3,7 @@ interface ProviderError { code?: string; message?: string; status?: number }
 export interface AccountAdmin {
  createUser: (input:{email:string;password:string;email_confirm:boolean;user_metadata:{full_name:string;login:string}})=>Promise<{id:string|null;error:ProviderError|null}>;
  registerLogin: (input:{user_id:string;login:string;created_by:string})=>Promise<ProviderError|null>;
+ requirePasswordChange: (id:string)=>Promise<ProviderError|null>;
  deleteUser: (id:string)=>Promise<ProviderError|null>;
 }
 export interface AccountPorts {
@@ -35,6 +36,8 @@ export async function provisionManagedAccount(raw:unknown, ports:AccountPorts):P
   createdId=created.id;
   const registry=await admin.registerLogin({user_id:createdId,login:input.login,created_by:userId});
   if(registry)return rollback(registry.code==='23505'?'Этот логин уже занят':'Не удалось сохранить логин. Проверьте миграцию 0011',registry.code==='23505'?409:500);
+  const flagged=await admin.requirePasswordChange(createdId);
+  if(flagged)return rollback('Не удалось отметить временный пароль. Проверьте миграцию 0018');
   // Use the actor's session and RLS, so revoked owner privileges cannot be bypassed by the service key.
   const membership=await ports.addMember(input.departmentId,createdId,input.role);
   if(membership)return rollback('Не удалось добавить пользователя в отдел. Проверьте права владельца');

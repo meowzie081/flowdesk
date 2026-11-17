@@ -329,5 +329,17 @@ eq((await one('select check_rate_limit($1,$2,$3) as ok',['rl-disabled',0,60])).o
 await as(owner);
 await denied('select check_rate_limit($1,$2,$3)',['rl-test',3,60]);
 eq((await one('select count(*)::int n from rate_limit_buckets')).n,0);
+// 0018: отметка временного пароля защищена от клиентских ролей.
+eq((await one('select must_change_password from profiles where id=$1',[member])).must_change_password,false);
+await db.exec('reset role');await db.exec('set role service_role');
+await db.query('update profiles set must_change_password=true where id=$1',[member]);
+await as(member);
+await db.query('update profiles set must_change_password=false where id=$1',[member]);
+eq((await one('select must_change_password from profiles where id=$1',[member])).must_change_password,true);
+await db.query('update profiles set full_name=$1 where id=$2',['Member Renamed',member]);
+eq((await one('select full_name from profiles where id=$1',[member])).full_name,'Member Renamed');
+await db.exec('reset role');await db.exec('set role service_role');
+await db.query('update profiles set must_change_password=false where id=$1',[member]);
+eq((await one('select must_change_password from profiles where id=$1',[member])).must_change_password,false);
 console.log(`Database OK: ${migrations.length} migrations, ${checks} checks (roles, RLS, threads, mentions, read cursors, task conversion, checklist history, columns, files, summary).`);
 } finally {await db.close();}

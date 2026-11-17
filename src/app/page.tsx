@@ -1,6 +1,7 @@
 import Onboarding from '@/components/Onboarding';
 import Link from 'next/link';
 import { revalidatePath } from 'next/cache';
+import { redirect } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
 import UserMenu from '@/components/UserMenu';
 import { lookFromRow } from '@/lib/profile';
@@ -57,8 +58,9 @@ export default async function Home() {
     data: { user },
   } = await supabase.auth.getUser();
   const { data: profile } = user
-    ? await supabase.from('profiles').select('full_name, avatar_icon, name_color').eq('id', user.id).maybeSingle()
+    ? await supabase.from('profiles').select('*').eq('id', user.id).maybeSingle()
     : { data: null };
+  if (profile?.must_change_password) redirect('/profile');
   const look = lookFromRow(profile, user?.email?.split('@')[0] ?? 'Профиль');
 
   return (
