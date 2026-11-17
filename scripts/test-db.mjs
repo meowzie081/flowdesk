@@ -341,5 +341,8 @@ eq((await one('select full_name from profiles where id=$1',[member])).full_name,
 await db.exec('reset role');await db.exec('set role service_role');
 await db.query('update profiles set must_change_password=false where id=$1',[member]);
 eq((await one('select must_change_password from profiles where id=$1',[member])).must_change_password,false);
+// 0019: индексы под запросы приложения.
+for(const idx of ['columns_board_idx','boards_department_idx','messages_root_idx','tasks_assignee_idx','email_campaigns_department_idx','attachments_task_idx'])
+  eq((await one('select count(*)::int n from pg_indexes where indexname=$1',[idx])).n,1);
 console.log(`Database OK: ${migrations.length} migrations, ${checks} checks (roles, RLS, threads, mentions, read cursors, task conversion, checklist history, columns, files, summary).`);
 } finally {await db.close();}
