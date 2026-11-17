@@ -1,13 +1,14 @@
 'use client';
 import {trackEvent} from '@/lib/analytics-client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { z } from 'zod';
 import { createClient } from '@/lib/supabase/client';
 import TaskDetail from './TaskDetail';
 import UserName from './UserName';
 import ColumnSettings from './ColumnSettings';
 import { checklistProgress, columnLoad, type ChecklistItem } from '@/lib/collaboration';
+import { applyColumnChange, applyTaskChange, mergeFetchedTasks, type RealtimeChange } from '@/lib/board-sync';
 
 export interface Column {
   id: string;
@@ -91,6 +92,9 @@ export default function Board({
   const [readiness,setReadiness]=useState<Record<string,number>>({});
   const [dragOver, setDragOver] = useState<string | null>(null);
 
+  const tasksRef = useRef(tasks);
+  useEffect(() => { tasksRef.current = tasks; }, [tasks]);
+
   useEffect(() => {
     let alive = true;
     async function refresh() {
@@ -102,10 +106,65 @@ export default function Board({
       if (taskRows) {setTasks(taskRows as Task[]);if(taskRows.length){const {data}=await supabase.from('task_readiness').select('id,blocked_count').in('id',taskRows.map(t=>t.id));if(alive&&data)setReadiness(Object.fromEntries(data.map(t=>[t.id,Number(t.blocked_count)])))}}
       if (columnRows) setColumns(columnRows as Column[]);
     }
+
+    // Realtime-события плоские: вложенные чек-листы догружаем отдельным запросом.
+    const pendingFetch = new Set<string>();
+    let fetchTimer: ReturnType<typeof setTimeout> | null = null;
+    let readinessTimer: ReturnType<typeof setTimeout> | null = null;
+
+    async function flushFetches() {
+      fetchTimer = null;
+      const ids = [...pendingFetch];
+      pendingFetch.clear();
+      if (!ids.length) return;
+      const { data } = await supabase.from('tasks').select(TASK_FIELDS).in('id', ids);
+      if (!alive || !data) return;
+      const rows = (data as Task[]).filter((t) => !t.archived_at);
+      if (rows.length) setTasks((prev) => mergeFetchedTasks(prev, rows));
+    }
+
+    function scheduleReadiness() {
+      if (readinessTimer) clearTimeout(readinessTimer);
+      readinessTimer = setTimeout(async () => {
+        readinessTimer = null;
+        const ids = tasksRef.current.map((t) => t.id);
+        if (!ids.length) return;
+        const { data } = await supabase.from('task_readiness').select('id,blocked_count').in('id', ids);
+        if (alive && data) setReadiness(Object.fromEntries(data.map((t) => [t.id, Number(t.blocked_count)])));
+      }, 500);
+    }
+
+    let degraded = false;
+    const channel = supabase
+      .channel(`board:${boardId}`)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'tasks', filter: `board_id=eq.${boardId}` }, (payload) => {
+        const change = payload as unknown as RealtimeChange;
+        const { fetchIds } = applyTaskChange(tasksRef.current, change);
+        setTasks((prev) => applyTaskChange(prev, change).rows);
+        for (const id of fetchIds) pendingFetch.add(id);
+        if (fetchIds.length && !fetchTimer) fetchTimer = setTimeout(flushFetches, 250);
+        scheduleReadiness();
+      })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'columns', filter: `board_id=eq.${boardId}` }, (payload) => {
+        setColumns((prev) => applyColumnChange(prev, payload as unknown as RealtimeChange));
+      })
+      .subscribe((status) => {
+        // При сбое канала и после переподключения сверяемся с БД, чтобы не потерять события.
+        if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') { degraded = true; refresh(); }
+        else if (status === 'SUBSCRIBED' && degraded) { degraded = false; refresh(); }
+      });
+
     refresh();
-    const timer = setInterval(() => { if (document.visibilityState === 'visible') refresh(); }, 10000);
+    const timer = setInterval(() => { if (document.visibilityState === 'visible') refresh(); }, 60000);
     window.addEventListener('focus', refresh);
-    return () => { alive=false; clearInterval(timer); window.removeEventListener('focus', refresh); };
+    return () => {
+      alive=false;
+      clearInterval(timer);
+      if (fetchTimer) clearTimeout(fetchTimer);
+      if (readinessTimer) clearTimeout(readinessTimer);
+      window.removeEventListener('focus', refresh);
+      supabase.removeChannel(channel);
+    };
   }, [supabase, boardId]);
 
   const memberById = useMemo(() => {
