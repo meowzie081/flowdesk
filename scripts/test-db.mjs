@@ -344,5 +344,41 @@ eq((await one('select must_change_password from profiles where id=$1',[member]))
 // 0019: индексы под запросы приложения.
 for(const idx of ['columns_board_idx','boards_department_idx','messages_root_idx','tasks_assignee_idx','email_campaigns_department_idx','attachments_task_idx'])
   eq((await one('select count(*)::int n from pg_indexes where indexname=$1',[idx])).n,1);
+// 0020/0021: организации, тарифы и лимиты на уровне БД.
+await as(founder);
+eq((await one('select organization_id is not null as linked from departments where id=$1',[founderDep])).linked,true);
+await as(owner);
+const ws=(await one('select create_organization_with_workspace($1,$2) as r',['Owner Org','Owner workspace'])).r;
+eq(typeof ws.organization_id,'string',true);
+eq((await one('select count(*)::int n from org_members where organization_id=$1 and user_id=$2 and role=$3',[ws.organization_id,owner,'owner'])).n,1);
+eq((await one('select plan_id from subscriptions where organization_id=$1',[ws.organization_id])).plan_id,'free');
+await denied('insert into organizations(name,created_by) values($1,$2)',['Second org',owner]);
+await denied('insert into departments(name,created_by) values($1,$2)',['No org dep',owner]);
+const orgDep=(await one('insert into departments(name,created_by,organization_id) values($1,$2,$3) returning id',['Inside org',owner,ws.organization_id])).id;
+await db.query('insert into department_members(department_id,user_id,role) values($1,$2,$3)',[orgDep,owner,'owner']);
+const orgBoard=(await one('insert into boards(department_id,name) values($1,$2) returning id',[orgDep,'Second board'])).id;
+eq(typeof orgBoard,'string',true);
+await denied('insert into boards(department_id,name) values($1,$2)',[orgDep,'Third board']);
+await db.exec('reset role');
+for(let i=41;i<=45;i++)await db.query('insert into auth.users(id,email) values($1,$2)',[uid(i),uid(i)+'@test.local']);
+await as(owner);
+for(let i=41;i<=44;i++)await db.query('insert into department_members(department_id,user_id,role) values($1,$2,$3)',[orgDep,uid(i),'member']);
+eq((await one('select count(*)::int n from org_members where organization_id=$1',[ws.organization_id])).n,5);
+await denied('insert into department_members(department_id,user_id,role) values($1,$2,$3)',[orgDep,uid(45),'member']);
+await as(outsider);
+eq((await one('select count(*)::int n from organizations where id=$1',[ws.organization_id])).n,0);
+eq((await db.query('select user_id from org_members where organization_id=$1',[ws.organization_id])).rows.length,0);
+await denied('insert into departments(name,created_by,organization_id) values($1,$2,$3)',['Intruder',outsider,ws.organization_id]);
+await as(member);
+eq((await db.query('select name from organizations where id=$1',[ws.organization_id])).rows.length,0);
+await as(owner);
+await denied('update subscriptions set plan_id=$1 where organization_id=$2',['team',ws.organization_id]);
+eq((await one('select plan_id from subscriptions where organization_id=$1',[ws.organization_id])).plan_id,'free');
+await db.query('update organizations set name=$1 where id=$2',['Owner Org renamed',ws.organization_id]);
+eq((await one('select name from organizations where id=$1',[ws.organization_id])).name,'Owner Org renamed');
+await db.exec('reset role');await db.exec('set role service_role');
+await db.query('update subscriptions set plan_id=$1 where organization_id=$2',['team',ws.organization_id]);
+await as(owner);
+eq(typeof (await one('insert into boards(department_id,name) values($1,$2) returning id',[orgDep,'Third board team'])).id,'string',true);
 console.log(`Database OK: ${migrations.length} migrations, ${checks} checks (roles, RLS, threads, mentions, read cursors, task conversion, checklist history, columns, files, summary).`);
 } finally {await db.close();}

@@ -5,6 +5,7 @@ import { redirect } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
 import UserMenu from '@/components/UserMenu';
 import { lookFromRow } from '@/lib/profile';
+import { pickOwnedOrgId } from '@/lib/organizations';
 
 async function createDepartment(formData: FormData) {
   'use server';
@@ -16,9 +17,25 @@ async function createDepartment(formData: FormData) {
   } = await supabase.auth.getUser();
   if (!user) return;
 
+  // Организации появились в миграциях 0020/0021: если их ещё нет в БД,
+  // запрос упадёт и мы создаём отдел по старой схеме.
+  const { data: orgRows, error: orgError } = await supabase
+    .from('org_members')
+    .select('organization_id, role')
+    .eq('user_id', user.id);
+  const orgLayerReady = !orgError;
+  const ownedOrgId = orgLayerReady ? pickOwnedOrgId(orgRows ?? []) : null;
+
+  if (orgLayerReady && !ownedOrgId) {
+    const { error } = await supabase.rpc('create_organization_with_workspace', { p_org_name: name });
+    if (error) throw new Error(`Не удалось создать рабочее пространство: ${error.message}`);
+    revalidatePath('/');
+    return;
+  }
+
   const { data: dep, error: depError } = await supabase
     .from('departments')
-    .insert({ name, created_by: user.id })
+    .insert(ownedOrgId ? { name, created_by: user.id, organization_id: ownedOrgId } : { name, created_by: user.id })
     .select('id')
     .single();
   if (depError || !dep) throw new Error(`Не удалось создать отдел: ${depError?.message}`);
