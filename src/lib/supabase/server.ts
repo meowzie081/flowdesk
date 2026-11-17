@@ -1,5 +1,6 @@
 import { createServerClient, type CookieOptions } from '@supabase/ssr';
 import { cookies } from 'next/headers';
+import { sanitizeAuthCookies } from '@/lib/supabase/cookies';
 
 type CookieToSet = { name: string; value: string; options: CookieOptions };
 
@@ -10,7 +11,7 @@ export function createClient() {
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
     {
       cookies: {
-        getAll: () => cookieStore.getAll(),
+        getAll: () => sanitizeAuthCookies(cookieStore.getAll()),
         setAll: (list: CookieToSet[]) => {
           try {
             list.forEach(({ name, value, options }) =>
