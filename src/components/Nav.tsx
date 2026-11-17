@@ -19,7 +19,7 @@ export default function Nav({
   email?: string | null;
 }) {
   return (
-    <header className="app-header border-b border-line bg-white">
+    <header className="app-header border-b border-line">
       <div className="mx-auto flex max-w-[1600px] flex-wrap items-center gap-x-4 gap-y-3 px-4 py-4 lg:px-6">
         <Link href="/" className="flex items-center gap-2.5 font-semibold tracking-tight">
           <span className="brand-mark flex h-9 w-9 items-center justify-center rounded-xl text-white" style={{color:"#fff"}}><Icon name="board" width={21} height={21}/></span>

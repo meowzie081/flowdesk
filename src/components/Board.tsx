@@ -1,9 +1,10 @@
 'use client';
 import {trackEvent} from '@/lib/analytics-client';
 
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { z } from 'zod';
 import { createClient } from '@/lib/supabase/client';
+import { confettiBurst } from '@/lib/confetti';
 import TaskDetail from './TaskDetail';
 import UserName from './UserName';
 import ColumnSettings from './ColumnSettings';
@@ -91,6 +92,36 @@ export default function Board({
   );
   const [readiness,setReadiness]=useState<Record<string,number>>({});
   const [dragOver, setDragOver] = useState<string | null>(null);
+  const [toasts, setToasts] = useState<{ id: number; text: string }[]>([]);
+  const toastId = useRef(0);
+  const flipRef = useRef<{ id: string; rect: DOMRect } | null>(null);
+
+  function pushToast(text: string) {
+    const id = ++toastId.current;
+    setToasts((prev) => [...prev.slice(-2), { id, text }]);
+    setTimeout(() => setToasts((prev) => prev.filter((toast) => toast.id !== id)), 2600);
+  }
+
+  // FLIP: карточка плавно перелетает на новое место после перерисовки колонок.
+  useLayoutEffect(() => {
+    const flip = flipRef.current;
+    if (!flip) return;
+    flipRef.current = null;
+    const el = document.querySelector<HTMLElement>(`[data-task-id="${flip.id}"]`);
+    if (!el || window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+    const next = el.getBoundingClientRect();
+    const dx = flip.rect.left - next.left;
+    const dy = flip.rect.top - next.top;
+    if (dx || dy) el.animate(
+      [{ transform: `translate(${dx}px, ${dy}px) scale(1.03)` }, { transform: 'translate(0,0) scale(1)' }],
+      { duration: 420, easing: 'cubic-bezier(.22,1,.36,1)' },
+    );
+  }, [tasks]);
+
+  function rememberRect(taskId: string) {
+    const el = document.querySelector<HTMLElement>(`[data-task-id="${taskId}"]`);
+    if (el) flipRef.current = { id: taskId, rect: el.getBoundingClientRect() };
+  }
 
   const tasksRef = useRef(tasks);
   useEffect(() => { tasksRef.current = tasks; }, [tasks]);
@@ -208,6 +239,7 @@ export default function Board({
     trackEvent('task_created',{source:'board'});
     setTasks((prev) => [...prev, data as Task]);
     setNewTitle((p) => ({ ...p, [columnId]: '' }));
+    pushToast(tr('board.toastCreated'));
   }
 
   /**
@@ -235,11 +267,19 @@ export default function Board({
     if (changed.length === 0) return;
 
     const prev = tasks;
+    rememberRect(taskId);
     setTasks((ts) => ts.map((t) => updates.find((u) => u.id === t.id) ?? t));
 
     const {error} = await supabase.rpc('move_board_task',{task:taskId,target_column:columnId,before_task:beforeId??null});
-    if (error) { setTasks(prev); setError(error.message); } else trackEvent('task_moved',{source:'board'});
-
+    if (error) { rememberRect(taskId); setTasks(prev); setError(error.message); return; }
+    trackEvent('task_moved',{source:'board'});
+    const targetCol = columns.find((c) => c.id === columnId);
+    const sourceCol = columns.find((c) => c.id === current.column_id);
+    if (targetCol?.is_done && !sourceCol?.is_done) {
+      const el = document.querySelector<HTMLElement>(`[data-task-id="${taskId}"]`);
+      if (el) { const r = el.getBoundingClientRect(); confettiBurst(r.left + r.width / 2, r.top + 10); }
+      pushToast(tr('board.toastDone', { column: targetCol.name }));
+    }
   }
 
   async function removeTask(taskId: string) {
@@ -249,7 +289,7 @@ export default function Board({
     if (error) {
       setTasks(prev);
       setError(error.message);
-    } else trackEvent('task_archived',{source:'board'});
+    } else { trackEvent('task_archived',{source:'board'}); pushToast(tr('board.toastArchived')); }
   }
 
   function dropOnColumn(e: React.DragEvent, columnId: string) {
@@ -352,6 +392,7 @@ export default function Board({
                 .map((t) => (
                   <li
                     key={t.id}
+                    data-task-id={t.id}
                     data-priority={t.priority}
                     className={`card task-card p-3 ${canWrite ? 'cursor-grab active:cursor-grabbing' : ''}`}
                     draggable={canWrite}
@@ -451,6 +492,12 @@ export default function Board({
           onSaved={(saved) => { setTasks(ts => ts.map(t => t.id === saved.id ? {...t,...saved} : t)); setOpenTask(saved); }}
         />
       )}
+
+      <div className="pointer-events-none fixed bottom-4 left-1/2 z-50 flex -translate-x-1/2 flex-col items-center gap-2" role="status" aria-live="polite">
+        {toasts.map((toast) => (
+          <div key={toast.id} className="toast-item rounded-full bg-ink px-4 py-2 text-sm text-paper shadow-lg">{toast.text}</div>
+        ))}
+      </div>
     </div>
   );
 }

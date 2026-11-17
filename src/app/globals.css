@@ -72,7 +72,7 @@ body {
 
 @layer components {
   .brand-mark { background: linear-gradient(145deg, #fb923c, #ea580c); box-shadow: 0 4px 12px rgb(234 88 12 / .18); }
-  .app-header { box-shadow: 0 1px 8px rgb(15 23 42 / .03); }
+  .app-header { box-shadow: 0 1px 8px rgb(15 23 42 / .03); background: linear-gradient(110deg, rgb(249 115 22 / .07), rgb(var(--surface)) 55%) rgb(var(--surface)); }
   .sidebar-active { color: #c2410c; background: #fff1e7; box-shadow: inset 3px 0 #f97316; }
   .dark .sidebar-active { color: #fdba74; background: rgb(249 115 22 / .12); }
   .dark .text-orange-600 { color: #fbad72; }
@@ -93,7 +93,11 @@ body {
   .dark .calendar-task[data-priority="high"] { color: #f3b0a2; background: rgb(239 128 110 / .13); }
   .dark .calendar-task[data-priority="low"] { color: #9bd1b9; background: rgb(98 173 145 / .13); }
   @media (max-width: 639px) { .calendar-cell { min-height: 100px; } }
-  @media (prefers-reduced-motion: reduce) { .task-card, .calendar-task { transition: none; } .task-card:hover { transform: none; } }
+  .skeleton { border-radius: 12px; background: linear-gradient(90deg, rgb(var(--sunken-2)) 25%, rgb(var(--sunken-1)) 45%, rgb(var(--sunken-2)) 65%); background-size: 300% 100%; animation: skeleton-shimmer 1.3s ease-in-out infinite; }
+  .toast-item { animation: toast-in .25s cubic-bezier(.22, 1, .36, 1); }
+  @keyframes skeleton-shimmer { 0% { background-position: 120% 0; } 100% { background-position: -80% 0; } }
+  @keyframes toast-in { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+  @media (prefers-reduced-motion: reduce) { .task-card, .calendar-task { transition: none; } .task-card:hover { transform: none; } .skeleton, .toast-item { animation: none; } }
 }
 
 /* Telegram controls and device safe areas must not cover app controls. */

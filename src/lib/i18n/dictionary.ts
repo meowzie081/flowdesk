@@ -155,6 +155,11 @@ export const ru: Record<string, string> = {
   'board.moveToColumn': 'Переместить в колонку',
   'board.archive': 'В архив',
   'board.newTask': 'Новая задача',
+  'board.toastDone': 'Задача перенесена в «{column}»',
+  'board.toastCreated': 'Задача создана',
+  'board.toastArchived': 'Задача отправлена в архив',
+  'board.loading': 'Загрузка доски…',
+  'board.notFound': 'Доска не найдена.',
 
   'column.settings': 'Настроить колонки и лимиты задач',
   'column.done': 'завершено',
@@ -600,6 +605,11 @@ export const en: Record<string, string> = {
   'board.moveToColumn': 'Move to column',
   'board.archive': 'Archive',
   'board.newTask': 'New task',
+  'board.toastDone': 'Task moved to “{column}”',
+  'board.toastCreated': 'Task created',
+  'board.toastArchived': 'Task archived',
+  'board.loading': 'Loading board…',
+  'board.notFound': 'Board not found.',
 
   'column.settings': 'Configure columns and task limits',
   'column.done': 'done',

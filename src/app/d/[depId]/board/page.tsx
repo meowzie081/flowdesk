@@ -1,5 +1,7 @@
 import { createClient } from '@/lib/supabase/server';
 import { lookFromRow } from '@/lib/profile';
+import { getLang } from '@/lib/i18n/server';
+import { translate } from '@/lib/i18n/dictionary';
 import Board, { type Label, type Member, type Task } from '@/components/Board';
 
 export default async function BoardPage({
@@ -19,7 +21,7 @@ export default async function BoardPage({
   if(requestedTask) boardQuery = boardQuery.eq('id',requestedTask.board_id);
   else if(searchParams.board) boardQuery = boardQuery.eq('id',searchParams.board);
   const {data:board} = await boardQuery.order('created_at').limit(1).maybeSingle();
-  if (!board) return <p className="text-sm text-mute">Доска не найдена.</p>;
+  if (!board) return <p className="text-sm text-mute">{translate(getLang(), 'board.notFound')}</p>;
 
   const [{ data: columns }, { data: tasks }, { data: memberRows }, { data: labelRows }] = await Promise.all([
     supabase
