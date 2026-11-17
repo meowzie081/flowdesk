@@ -7,7 +7,7 @@ export default async function BoardPage({
   searchParams,
 }: {
   params: { depId: string };
-  searchParams: { task?: string };
+  searchParams: { task?: string; board?: string };
 }) {
   const supabase = createClient();
   const {
@@ -17,6 +17,7 @@ export default async function BoardPage({
   const requestedTask = searchParams.task ? (await supabase.from('tasks').select('board_id').eq('id',searchParams.task).maybeSingle()).data : null;
   let boardQuery = supabase.from('boards').select('id, name').eq('department_id',params.depId);
   if(requestedTask) boardQuery = boardQuery.eq('id',requestedTask.board_id);
+  else if(searchParams.board) boardQuery = boardQuery.eq('id',searchParams.board);
   const {data:board} = await boardQuery.order('created_at').limit(1).maybeSingle();
   if (!board) return <p className="text-sm text-mute">Доска не найдена.</p>;
 

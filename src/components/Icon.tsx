@@ -10,6 +10,7 @@ const paths={
  calendar:'M3 5h18v16H3z M7 3v4 M17 3v4 M3 10h18 M7 14h2 M13 14h2 M7 18h2',
  repeat:'M20 7H7a4 4 0 0 0-4 4 M17 3l4 4-4 4 M4 17h13a4 4 0 0 0 4-4 M7 13l-4 4 4 4',
  archive:'M3 3h18v5H3z M5 8v13h14V8 M10 12h4',
+ import:'M12 3v12 M8 11l4 4 4-4 M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2',
  summary:'M4 20V10 M10 20V4 M16 20v-7 M22 20H2',
  team:'M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2 M22 21v-2a4 4 0 0 0-3-3.87 M9 3a4 4 0 1 0 0 8 4 4 0 0 0 0-8 M16 3a4 4 0 0 1 0 8',
  left:'M15 18l-6-6 6-6',right:'M9 18l6-6-6-6',

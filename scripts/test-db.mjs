@@ -391,5 +391,18 @@ eq(usage.price_per_seat_month,299);
 await as(outsider);
 await denied('select * from org_usage($1)',[ws.organization_id]);
 await as(owner);
+// 0023: атомарный импорт доски, RLS и fallback колонки.
+const importPayload={board_name:'Импорт Trello',columns:[{name:'Backlog',is_done:false},{name:'Готово',is_done:true}],tasks:[{title:'T1',description:'d',column:'Backlog',priority:'high',due_date:'2026-12-01'},{title:'T2',description:'',column:'Готово',priority:'medium',due_date:null},{title:'T3',description:'',column:'Несуществующая',priority:'low',due_date:null}]};
+const importedBoard=(await one('select import_board_payload($1,$2::jsonb) as id',[orgDep,JSON.stringify(importPayload)])).id;
+eq(typeof importedBoard,'string',true);
+eq((await one('select count(*)::int n from columns where board_id=$1',[importedBoard])).n,2);
+eq((await one('select count(*)::int n from tasks where board_id=$1',[importedBoard])).n,3);
+eq((await one('select c.name from tasks t join columns c on c.id=t.column_id where t.board_id=$1 and t.title=$2',[importedBoard,'T3'])).name,'Backlog');
+eq((await one('select priority::text p, due_date::text d from tasks where board_id=$1 and title=$2',[importedBoard,'T1'])).p,'high');
+eq((await one('select due_date::text d from tasks where board_id=$1 and title=$2',[importedBoard,'T1'])).d,'2026-12-01');
+await denied('select import_board_payload($1,$2::jsonb)',[orgDep,JSON.stringify({board_name:'x',columns:[],tasks:[]})]);
+await as(outsider);
+await denied('select import_board_payload($1,$2::jsonb)',[orgDep,JSON.stringify(importPayload)]);
+await as(owner);
 console.log(`Database OK: ${migrations.length} migrations, ${checks} checks (roles, RLS, threads, mentions, read cursors, task conversion, checklist history, columns, files, summary).`);
 } finally {await db.close();}
