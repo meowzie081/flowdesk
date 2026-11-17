@@ -47,12 +47,12 @@ export function isReadableColor(hex: string): boolean {
 }
 
 export const profileSchema = z.object({
-  full_name: z.string().trim().min(1, 'Введите имя').max(40, 'Имя не длиннее 40 символов'),
+  full_name: z.string().trim().min(1, 'profile.errName').max(40, 'profile.errNameLong'),
   avatar_icon: z.string().max(8).nullable(),
   name_color: z
     .string()
     .nullable()
-    .refine((c) => c === null || isReadableColor(c), 'Этот цвет плохо читается на светлой или тёмной теме'),
+    .refine((c) => c === null || isReadableColor(c), 'profile.errContrast'),
 });
 
 export interface ProfileLook {

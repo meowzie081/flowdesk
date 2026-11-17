@@ -5,9 +5,11 @@ import { useEffect, useRef, useState } from 'react';
 import { accountLabel } from '@/lib/accounts';
 import UserName from './UserName';
 import type { ProfileLook } from '@/lib/profile';
+import { useI18n } from './I18nProvider';
 
 /** Меню пользователя в шапке: профиль и выход. */
 export default function UserMenu({ look, email }: { look: ProfileLook; email?: string | null }) {
+  const { t } = useI18n();
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
 
@@ -32,7 +34,7 @@ export default function UserMenu({ look, email }: { look: ProfileLook; email?: s
         onClick={() => setOpen((o) => !o)}
         aria-haspopup="menu"
         aria-expanded={open}
-        aria-label="Меню профиля"
+        aria-label={t('nav.profileMenu')}
       >
         <UserName look={look} className="truncate" />
       </button>
@@ -50,11 +52,11 @@ export default function UserMenu({ look, email }: { look: ProfileLook; email?: s
             onClick={() => setOpen(false)}
             className="block rounded px-3 py-2 text-sm hover:bg-neutral-100"
           >
-            Профиль и уведомления
+            {t('nav.profileAndNotifications')}
           </Link>
           <form action="/auth/signout" method="post">
             <button role="menuitem" className="block w-full rounded px-3 py-2 text-left text-sm hover:bg-neutral-100">
-              Выйти
+              {t('common.signOut')}
             </button>
           </form>
         </div>

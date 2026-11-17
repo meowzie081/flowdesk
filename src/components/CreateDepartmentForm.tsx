@@ -4,8 +4,10 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useRef, useState, useTransition } from 'react';
 import { createDepartment } from '@/app/create-department';
+import { useI18n } from './I18nProvider';
 
 export default function CreateDepartmentForm() {
+  const { t } = useI18n();
   const router = useRouter();
   const ref = useRef<HTMLFormElement>(null);
   const [error, setError] = useState<string | null>(null);
@@ -28,9 +30,9 @@ export default function CreateDepartmentForm() {
   return (
     <form ref={ref} onSubmit={submit} className="mt-8">
       <div className="flex gap-2">
-        <input name="name" className="input" placeholder="Название отдела" required minLength={2} maxLength={80} aria-label="Название отдела" />
+        <input name="name" className="input" placeholder={t('home.depName')} required minLength={2} maxLength={80} aria-label={t('home.depName')} />
         <button className="btn-solid" disabled={pending}>
-          {pending ? 'Создаю…' : 'Создать'}
+          {pending ? t('common.creating') : t('common.create')}
         </button>
       </div>
       {error && (
@@ -38,7 +40,7 @@ export default function CreateDepartmentForm() {
           {error}{' '}
           {isLimit && (
             <Link href="/org" className="font-medium underline">
-              Посмотреть тариф
+              {t('home.viewPlan')}
             </Link>
           )}
         </p>

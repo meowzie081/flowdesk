@@ -4,8 +4,10 @@ import {nativeClient,type NativeClient} from '@/lib/native-client';
 import { useEffect, useState } from 'react';
 import { signInEmail, isManagedEmail } from '@/lib/accounts';
 import { createClient } from '@/lib/supabase/client';
+import { useI18n } from '@/components/I18nProvider';
 
 export default function LoginPage() {
+  const { t } = useI18n();
   const [client,setClient]=useState<NativeClient>(null);
   useEffect(()=>{setClient(nativeClient());const timer=setTimeout(()=>setClient(nativeClient()),500);return()=>clearTimeout(timer)},[]);
   const [email, setEmail] = useState('');
@@ -18,7 +20,7 @@ export default function LoginPage() {
   useEffect(()=>{
     const params=new URLSearchParams(window.location.search);
     if(params.get('auth_error'))
-      setError('Ссылка из письма недействительна или устарела. Войдите или зарегистрируйтесь повторно.');
+      setError(t('auth.errLink'));
     if(params.get('mode')==='up')setMode('up');
   },[]);
 
@@ -27,9 +29,9 @@ export default function LoginPage() {
     setError(null);
     setNotice(null);
     let identity:string;
-    try {identity = mode==='in' ? signInEmail(email) : email.trim().toLowerCase();} catch {return setError('Введите email или логин из 3–32 латинских букв, цифр, точек, дефисов и подчёркиваний');}
-    if(mode==='up'&&(!/^\S+@\S+\.\S+$/.test(identity)||isManagedEmail(identity)))return setError('Для самостоятельной регистрации нужен ваш email');
-    if (password.length < 8) return setError('Пароль — минимум 8 символов');
+    try {identity = mode==='in' ? signInEmail(email) : email.trim().toLowerCase();} catch {return setError(t('auth.errIdentity'));}
+    if(mode==='up'&&(!/^\S+@\S+\.\S+$/.test(identity)||isManagedEmail(identity)))return setError(t('auth.errSelfSignup'));
+    if (password.length < 8) return setError(t('auth.errPasswordLen'));
     setBusy(true);
     try {
       const supabase = createClient();
@@ -37,17 +39,17 @@ export default function LoginPage() {
         ? await supabase.auth.signInWithPassword({ email:identity, password })
         : await supabase.auth.signUp({ email:identity, password, options:{emailRedirectTo:`${window.location.origin}/auth/callback`} });
       if (error) {
-        if(mode==='in'&&/confirm/i.test(error.message))return setError('Email не подтверждён. Перейдите по ссылке из письма, затем войдите.');
-        return setError(mode==='in'?'Не удалось войти. Проверьте логин/email и пароль.':error.message);
+        if(mode==='in'&&/confirm/i.test(error.message))return setError(t('auth.errUnconfirmed'));
+        return setError(mode==='in'?t('auth.errSignIn'):error.message);
       }
       if (mode==='up'&&!data.session) {
-        setNotice(`Письмо с подтверждением отправлено на ${identity}. Перейдите по ссылке из письма, затем войдите.`);
+        setNotice(t('auth.noticeSent',{email:identity}));
         setMode('in');
         setPassword('');
         return;
       }
       window.location.href = '/';
-    } catch {setError('Не удалось связаться с сервером. Попробуйте ещё раз');}
+    } catch {setError(t('auth.errNetwork'));}
     finally {setBusy(false);}
 
   }
@@ -64,14 +66,14 @@ export default function LoginPage() {
     <main className="mx-auto flex min-h-screen max-w-sm flex-col justify-center gap-6 px-4">
       <div>
         <h1 className="text-3xl font-semibold tracking-tight">FlowDesk</h1>
-        <p className="mt-1 text-sm text-mute">Задачи, чат и ИИ-помощник команды</p>
+        <p className="mt-1 text-sm text-mute">{t('auth.tagline')}</p>
       </div>
       <form onSubmit={submit} className="flex flex-col gap-3">
         <input
           className="input"
           type={mode==='in'?'text':'email'}
-          aria-label={mode==='in'?'Email или логин':'Email'}
-          placeholder={mode==='in'?'Email или логин':'Email'}
+          aria-label={mode==='in'?t('auth.emailOrLogin'):t('auth.email')}
+          placeholder={mode==='in'?t('auth.emailOrLogin'):t('auth.email')}
           value={email}
           onChange={(e) => setEmail(e.target.value)}
           autoComplete={mode==='in'?'username':'email'}
@@ -81,8 +83,8 @@ export default function LoginPage() {
         <input
           className="input"
           type="password"
-          aria-label="Пароль"
-          placeholder="Пароль"
+          aria-label={t('auth.password')}
+          placeholder={t('auth.password')}
           value={password}
           onChange={(e) => setPassword(e.target.value)}
           autoComplete={mode === 'in' ? 'current-password' : 'new-password'}
@@ -90,18 +92,18 @@ export default function LoginPage() {
         {error && <p className="text-sm text-red-600">{error}</p>}
         {notice && <p className="text-sm text-ink">{notice}</p>}
         <button className="btn-solid" disabled={busy}>
-          {mode === 'in' ? 'Войти' : 'Создать аккаунт'}
+          {mode === 'in' ? t('common.signIn') : t('auth.signUp')}
         </button>
         {!client&&<button type="button" className="btn" onClick={google}>
-          Войти через Google
+          {t('auth.google')}
         </button>}
-        {client&&<p className="text-xs text-mute">Для входа в приложение используйте логин/email и пароль FlowDesk. Вход через Google доступен на сайте в обычном браузере.</p>}
+        {client&&<p className="text-xs text-mute">{t('auth.nativeHint')}</p>}
       </form>
       <button
         className="text-left text-sm text-mute underline"
         onClick={() => setMode(mode === 'in' ? 'up' : 'in')}
       >
-        {mode === 'in' ? 'Нет аккаунта? Зарегистрироваться' : 'Уже есть аккаунт? Войти'}
+        {mode === 'in' ? t('auth.noAccount') : t('auth.haveAccount')}
       </button>
     </main>
   );

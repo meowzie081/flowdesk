@@ -2,12 +2,13 @@
 
 import { useRef, useState, useTransition } from 'react';
 import { createApiToken, revokeApiToken } from '@/app/profile/api-tokens';
+import { useI18n } from './I18nProvider';
 
 export type ApiTokenRow = { id: string; name: string; token_prefix: string; created_at: string; last_used_at: string | null };
 
-const fmt = (iso: string) => new Date(iso).toLocaleDateString('ru-RU');
-
 export default function ApiTokens({ tokens }: { tokens: ApiTokenRow[] | null }) {
+  const { t: tr, lang } = useI18n();
+  const fmt = (iso: string) => new Date(iso).toLocaleDateString(lang === 'ru' ? 'ru-RU' : 'en-US');
   const [pending, startTransition] = useTransition();
   const [created, setCreated] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -17,9 +18,9 @@ export default function ApiTokens({ tokens }: { tokens: ApiTokenRow[] | null }) 
   if (!tokens) {
     return (
       <section className="mt-8 rounded-lg border border-line p-4">
-        <h2 className="text-sm font-medium">API-токены</h2>
+        <h2 className="text-sm font-medium">{tr('api.title')}</h2>
         <p className="mt-1 text-sm text-mute">
-          Публичный API ещё не включён в этой базе. Примените миграцию 0024 в Supabase SQL Editor — после этого здесь можно будет создавать персональные токены.
+          {tr('api.notEnabled')}
         </p>
       </section>
     );
@@ -42,7 +43,7 @@ export default function ApiTokens({ tokens }: { tokens: ApiTokenRow[] | null }) 
     setError(null);
     startTransition(async () => {
       const result = await revokeApiToken(formData);
-      if (!result.ok) setError(result.error ?? 'Не удалось удалить токен');
+      if (!result.ok) setError(result.error ?? tr('api.errRevoke'));
     });
   }
 
@@ -52,23 +53,23 @@ export default function ApiTokens({ tokens }: { tokens: ApiTokenRow[] | null }) 
       await navigator.clipboard.writeText(created);
       setCopied(true);
     } catch {
-      setError('Не удалось скопировать — выделите токен вручную.');
+      setError(tr('api.errCopy'));
     }
   }
 
   return (
     <section className="mt-8 rounded-lg border border-line p-4">
-      <h2 className="text-sm font-medium">API-токены</h2>
+      <h2 className="text-sm font-medium">{tr('api.title')}</h2>
       <p className="mt-1 text-sm text-mute">
-        Персональные токены для публичного API: доступ в рамках ваших отделов, права как у вашей роли. Документация — docs/API.md в репозитории.
+        {tr('api.hint')}
       </p>
 
       {created && (
         <div role="status" className="mt-3 rounded-lg border border-orange-600/40 bg-orange-50 p-3">
-          <p className="text-sm font-medium">Токен создан. Скопируйте его сейчас — он показывается один раз.</p>
+          <p className="text-sm font-medium">{tr('api.created')}</p>
           <code className="mt-2 block break-all rounded bg-white p-2 text-xs">{created}</code>
           <button type="button" className="btn mt-2 py-1" onClick={copy}>
-            {copied ? 'Скопировано' : 'Скопировать'}
+            {copied ? tr('common.copied') : tr('common.copy')}
           </button>
         </div>
       )}
@@ -79,9 +80,9 @@ export default function ApiTokens({ tokens }: { tokens: ApiTokenRow[] | null }) 
       )}
 
       <form ref={formRef} action={create} className="mt-3 flex flex-wrap gap-2">
-        <input name="name" required maxLength={60} placeholder="Например: CI-скрипт" className="input max-w-xs" />
+        <input name="name" required maxLength={60} placeholder={tr('api.namePlaceholder')} className="input max-w-xs" />
         <button className="btn-solid" disabled={pending}>
-          {pending ? 'Создаём…' : 'Создать токен'}
+          {pending ? tr('common.creating') : tr('api.create')}
         </button>
       </form>
 
@@ -92,14 +93,14 @@ export default function ApiTokens({ tokens }: { tokens: ApiTokenRow[] | null }) 
               <div>
                 <p className="font-medium">{t.name}</p>
                 <p className="text-xs text-mute">
-                  <code>{t.token_prefix}…</code> · создан {fmt(t.created_at)} ·{' '}
-                  {t.last_used_at ? `использован ${fmt(t.last_used_at)}` : 'ещё не использовался'}
+                  <code>{t.token_prefix}…</code> · {tr('api.createdOn', { date: fmt(t.created_at) })} ·{' '}
+                  {t.last_used_at ? tr('api.usedOn', { date: fmt(t.last_used_at) }) : tr('api.neverUsed')}
                 </p>
               </div>
               <form action={revoke}>
                 <input type="hidden" name="id" value={t.id} />
                 <button className="btn py-1" disabled={pending}>
-                  Отозвать
+                  {tr('api.revoke')}
                 </button>
               </form>
             </li>

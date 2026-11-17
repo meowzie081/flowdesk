@@ -4,7 +4,7 @@ import {trackEvent,fileKind} from '@/lib/analytics-client';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { z } from 'zod';
 import { createClient } from '@/lib/supabase/client';
-import { COMMAND_HELP, parseSlash, usesBoardData } from '@/lib/ai/commands';
+import { SLASH_COMMANDS, parseSlash, usesBoardData } from '@/lib/ai/commands';
 import { maskSensitive, totalMasked } from '@/lib/ai/mask';
 import { mergeMessages, reconcileMessages } from '@/lib/chat';
 import { meetingMessage, parseMeeting } from '@/lib/ai/meeting';
@@ -12,6 +12,7 @@ import RichText from './RichText';
 import FilePreview from './FilePreview';
 import UserName from './UserName';
 import { CHAT_FIELDS, displayMentions, mentionToken, type ReadInfo } from '@/lib/collaboration';
+import { useI18n } from './I18nProvider';
 
 interface Attachment { name: string; path: string; size: number }
 
@@ -66,6 +67,7 @@ export default function Chat({
   looks: Record<string, { name: string; icon: string | null; color: string | null }>;
 }) {
   const supabase = useMemo(() => createClient(), []);
+  const { t, lang } = useI18n();
   const [messages, setMessages] = useState<Msg[]>(initial);
   const [text, setText] = useState('');
   const [files, setFiles] = useState<File[]>([]);
@@ -195,7 +197,7 @@ export default function Chat({
     setError(null);
     const cmd = parseSlash(value);
     if (!cmd) {
-      if (value.length > 4000) return setError('Сообщение длиннее 4000 символов');
+      if (value.length > 4000) return setError(t('chat.errLong'));
       setBusy(true);
       const uploaded: Attachment[] = [];
       try {
@@ -205,19 +207,19 @@ export default function Chat({
           if (error) throw new Error(error.message);
           uploaded.push({ name: file.name, path, size: file.size });
         }
-        const id = await postMessage(encoded || '📎 Вложения', false, uploaded);
-        if (!id) throw new Error('Не удалось отправить сообщение');
+        const id = await postMessage(encoded || t('chat.attachmentsBody'), false, uploaded);
+        if (!id) throw new Error(t('chat.errSend'));
         trackEvent('message_sent',{source:'chat'});
         for(const file of files)trackEvent('file_uploaded',{source:'chat',kind:fileKind(file.type)});
         shouldScroll.current = true; setText(''); setFiles([]); setMentionIds([]); setMentionQuery(null);
       } catch (err) {
         if (uploaded.length) await supabase.storage.from('chat-files').remove(uploaded.map(f => f.path));
-        setError(err instanceof Error ? err.message : 'Ошибка загрузки');
+        setError(err instanceof Error ? err.message : t('chat.errUpload'));
       } finally { setBusy(false); }
       return;
     }
 
-    if (files.length) return setError('Отправьте вложения отдельно от команды ИИ');
+    if (files.length) return setError(t('chat.errFilesWithCommand'));
     setBusy(true);
     try {
     // для /meeting все данные — в самих заметках, чат в запрос не добавляем
@@ -241,7 +243,7 @@ export default function Chat({
     const data = await res.json().catch(() => ({}));
     if (!res.ok) {
       const detail = data.detail ? `: ${data.detail}` : '';
-      return setError(`ИИ недоступен (${data.error ?? res.status}${detail})`);
+      return setError(t('chat.errAiUnavailable', { detail: `${data.error ?? res.status}${detail}` }));
     }
     trackEvent('ai_response_received',{source:'chat',command:cmd.command});
     setText('');
@@ -252,12 +254,12 @@ export default function Chat({
         const parsed = draftSchema.parse(JSON.parse(json));
         setDrafts(parsed.map((d) => ({ ...d, sourceMessageId: selected[0] })));
       } catch {
-        setError('ИИ вернул ответ в неожиданном формате — попробуйте ещё раз');
+        setError(t('chat.errAiFormat'));
       }
     } else if (cmd.command === 'meeting') {
       const result = parseMeeting(String(data.answer));
       if (!result) {
-        setError('ИИ вернул ответ в неожиданном формате — попробуйте ещё раз');
+        setError(t('chat.errAiFormat'));
       } else {
         // Итоги встречи публикуются в чате, а задачи привязываются к этому сообщению
         const messageId = await postMessage(meetingMessage(result), true);
@@ -267,13 +269,13 @@ export default function Chat({
       await postMessage(String(data.answer).slice(0, 4000), true);
     }
     setSelected([]);
-    } catch { setError('Не удалось связаться с ИИ. Попробуйте ещё раз'); }
+    } catch { setError(t('chat.errAiNetwork')); }
     finally { setBusy(false); }
   }
 
   function pickFiles(incoming: File[]) {
-    if (files.length + incoming.length > 5) return setError('До 5 файлов в одном сообщении');
-    if (incoming.some(f => f.size > 10 * 1024 * 1024)) return setError('Максимальный размер файла — 10 МБ');
+    if (files.length + incoming.length > 5) return setError(t('chat.errFileCount'));
+    if (incoming.some(f => f.size > 10 * 1024 * 1024)) return setError(t('chat.errFileSize'));
     setError(null); setFiles(prev => [...prev, ...incoming]);
   }
 
@@ -284,14 +286,14 @@ export default function Chat({
   }
 
   async function removeMessage(m: Msg) {
-    if (!window.confirm('Удалить сообщение и его вложения?')) return;
+    if (!window.confirm(t('chat.deleteConfirm'))) return;
     const { error } = await supabase.rpc('delete_chat_message', { message_id: m.id });
     if (error) return setError(error.message);
-    setMessages(prev => prev.map(item => item.id === m.id ? { ...item, deleted_at: new Date().toISOString(), body: 'Сообщение удалено', files: [] } : item));
+    setMessages(prev => prev.map(item => item.id === m.id ? { ...item, deleted_at: new Date().toISOString(), body: t('chat.deleted'), files: [] } : item));
     setSelected(prev => prev.filter(id => id !== m.id));
     if (m.files?.length) {
       const { error } = await supabase.storage.from('chat-files').remove(m.files.map(f => f.path));
-      if (error) setError('Сообщение удалено, но очистка вложений не удалась: ' + error.message);
+      if (error) setError(t('chat.errCleanup', { error: error.message }));
     }
   }
 
@@ -306,7 +308,7 @@ export default function Chat({
         .order('created_at', { ascending: false }).order('id',{ascending:false}).limit(100);
       if (error) throw error;
       shouldScroll.current = false; setMessages(prev => mergeMessages(prev, data as Msg[])); setHasHistory(data.length === 100);if(data.length){const oldest=data[data.length-1];setHistoryCursor({created_at:oldest.created_at,id:oldest.id});}
-    } catch { setError('Не удалось загрузить историю'); } finally { setLoadingHistory(false); }
+    } catch { setError(t('chat.errHistory')); } finally { setLoadingHistory(false); }
   }
 
   async function refreshUnread() {
@@ -317,7 +319,7 @@ export default function Chat({
     setThreadBusy(true);setSearch('');
     try {
       const {data,error}=await supabase.from('chat_messages').select(CHAT_FIELDS).eq('department_id',depId).eq('id',id).maybeSingle();
-      if(error)throw error;if(!data)throw new Error('Сообщение недоступно');
+      if(error)throw error;if(!data)throw new Error(t('chat.errUnavailable'));
       const root=data.parent_id??data.id;
       const {data:rootRow,error:rootError}=await supabase.from('chat_messages').select(CHAT_FIELDS).eq('id',root).eq('department_id',depId).single();
       if(rootError)throw rootError;
@@ -345,7 +347,7 @@ export default function Chat({
   }
 
   async function confirmDraft(d: Draft, index: number) {
-    if (!boardId || !firstColumnId) return setError('На доске нет колонок');
+    if (!boardId || !firstColumnId) return setError(t('chat.errNoColumns'));
     const { error } = await supabase.from('tasks').insert({
       board_id: boardId,
       column_id: firstColumnId,
@@ -362,15 +364,15 @@ export default function Chat({
   return (
     <div className="chat-shell flex h-[calc(100dvh-9rem)] min-h-[420px] flex-col rounded-2xl border border-line bg-white p-4 shadow-sm" onDragOver={e => e.preventDefault()} onDrop={e => { e.preventDefault(); if (canWrite && !busy) pickFiles(Array.from(e.dataTransfer.files)); }}>
       <div className="mb-4 flex flex-wrap items-center gap-3 border-b border-line pb-4">
-        <div className="mr-auto"><h1 className="text-xl font-semibold">Чат команды <span className="text-orange-600">✦</span></h1><p className="text-xs text-mute">Обсуждения, файлы и идеи для новых задач</p></div>
-        <input className="input sm:max-w-64" aria-label="Поиск по загруженным сообщениям" placeholder="Поиск в загруженной истории…" value={search} onChange={e => setSearch(e.target.value)} />
+        <div className="mr-auto"><h1 className="text-xl font-semibold">{t('chat.title')} <span className="text-orange-600">✦</span></h1><p className="text-xs text-mute">{t('chat.subtitle')}</p></div>
+        <input className="input sm:max-w-64" aria-label={t('chat.searchAria')} placeholder={t('chat.searchPlaceholder')} value={search} onChange={e => setSearch(e.target.value)} />
       </div>
-      {threadId&&<div className="mb-3 flex items-center gap-3"><button className="btn" disabled={busy} onClick={()=>{setThreadId(null);setSearch('')}}>← Общий чат</button><span className="text-sm text-mute">Ветка обсуждения</span></div>}
-      {readInfo.count>0&&<div className="mb-3 flex flex-wrap items-center gap-2 rounded-xl bg-orange-500/10 p-3 text-sm"><span className="mr-auto">Непрочитанных: {readInfo.count}</span><button className="btn" disabled={threadBusy} onClick={()=>readInfo.first_id&&openMessage(readInfo.first_id)}>К первому непрочитанному</button><button className="btn" onClick={markRead}>Отметить прочитанным</button></div>}
-      {threadBusy&&<p className="mb-2 text-xs text-mute">Загрузка обсуждения…</p>}
+      {threadId&&<div className="mb-3 flex items-center gap-3"><button className="btn" disabled={busy} onClick={()=>{setThreadId(null);setSearch('')}}>{t('chat.backToMain')}</button><span className="text-sm text-mute">{t('chat.threadLabel')}</span></div>}
+      {readInfo.count>0&&<div className="mb-3 flex flex-wrap items-center gap-2 rounded-xl bg-orange-500/10 p-3 text-sm"><span className="mr-auto">{t('chat.unreadCount',{count:readInfo.count})}</span><button className="btn" disabled={threadBusy} onClick={()=>readInfo.first_id&&openMessage(readInfo.first_id)}>{t('chat.toFirstUnread')}</button><button className="btn" onClick={markRead}>{t('chat.markRead')}</button></div>}
+      {threadBusy&&<p className="mb-2 text-xs text-mute">{t('chat.loadingThread')}</p>}
       <ul ref={scrollRef} onScroll={e => { const el = e.currentTarget; shouldScroll.current = el.scrollHeight - el.scrollTop - el.clientHeight < 100; }} className="flex-1 space-y-2 overflow-y-auto pr-1">
-        {hasHistory && !threadId && <li><button type="button" className="btn w-full" disabled={loadingHistory} onClick={loadHistory}>{loadingHistory ? 'Загрузка…' : 'Загрузить предыдущие сообщения'}</button></li>}
-        {!visible.length && <li className="py-12 text-center text-mute">{search ? 'Ничего не найдено' : 'Начните обсуждение — отправьте сообщение или файл'}</li>}
+        {hasHistory && !threadId && <li><button type="button" className="btn w-full" disabled={loadingHistory} onClick={loadHistory}>{loadingHistory ? t('common.loading') : t('chat.loadHistory')}</button></li>}
+        {!visible.length && <li className="py-12 text-center text-mute">{search ? t('chat.noResults') : t('chat.empty')}</li>}
         {visible.map((m) => (
           <li
             key={m.id}
@@ -382,7 +384,7 @@ export default function Chat({
             {canWrite && !m.deleted_at && (
               <input
                 type="checkbox"
-                aria-label="Выбрать сообщение"
+                aria-label={t('chat.selectMessage')}
                 checked={selected.includes(m.id)}
                 onChange={(e) =>
                   setSelected((s) => (e.target.checked ? [...s, m.id] : s.filter((x) => x !== m.id)))
@@ -391,27 +393,27 @@ export default function Chat({
             )}
             <div className="min-w-0 flex-1">
               {m.is_ai ? (
-                <span className="mb-1 block text-xs font-medium text-mute">ИИ</span>
+                <span className="mb-1 block text-xs font-medium text-mute">{t('task.ai')}</span>
               ) : (
                 <UserName
                   className="mb-0.5 block text-xs"
-                  look={looks[m.author_id] ?? { name: 'Участник', icon: null, color: null }}
+                  look={looks[m.author_id] ?? { name: t('task.memberFallback'), icon: null, color: null }}
                 />
               )}
-              {m.is_pinned&&<span className="mb-1 block text-xs text-orange-600">📌 Закреплено</span>}
-              {m.deleted_at?<span className="italic text-mute">Сообщение удалено</span>:m.is_ai?<RichText text={displayMentions(m.body)}/>:<span className="whitespace-pre-wrap break-words">{displayMentions(m.body)}</span>}
-              {readInfo.count>0&&m.author_id!==userId&&(m.created_at>readInfo.last_read_at||(m.created_at===readInfo.last_read_at&&m.id>readInfo.last_read_id))&&<span className="ml-2 text-xs text-orange-600">Новое</span>}
-              {!m.deleted_at&&m.mentions?.includes(userId)&&<span className="ml-2 rounded bg-orange-500/10 px-1 text-xs text-orange-600">Вас упомянули</span>}
-              {(m.files ?? []).map(f => <div key={f.path} className="mt-2 flex flex-wrap items-center gap-2"><button type="button" onClick={()=>download(f)} className="flex max-w-full items-center gap-2 rounded-lg border border-line bg-paper px-3 py-2 text-left"><span>📎</span><span className="min-w-0 truncate">{f.name}</span><span className="shrink-0 text-xs text-mute">{Math.max(1,Math.round(f.size/1024))} КБ ↓</span></button><FilePreview source="message" id={m.id} path={f.path} name={f.name}/></div>)}
-              <time dateTime={m.created_at} title={new Date(m.created_at).toLocaleString('ru-RU')} className={m.is_ai ? 'mt-1 block text-xs text-mute' : 'ml-2 text-xs text-mute'}>
-                {new Date(m.created_at).toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' })}
+              {m.is_pinned&&<span className="mb-1 block text-xs text-orange-600">{t('chat.pinned')}</span>}
+              {m.deleted_at?<span className="italic text-mute">{t('chat.deleted')}</span>:m.is_ai?<RichText text={displayMentions(m.body)}/>:<span className="whitespace-pre-wrap break-words">{displayMentions(m.body)}</span>}
+              {readInfo.count>0&&m.author_id!==userId&&(m.created_at>readInfo.last_read_at||(m.created_at===readInfo.last_read_at&&m.id>readInfo.last_read_id))&&<span className="ml-2 text-xs text-orange-600">{t('chat.new')}</span>}
+              {!m.deleted_at&&m.mentions?.includes(userId)&&<span className="ml-2 rounded bg-orange-500/10 px-1 text-xs text-orange-600">{t('chat.mentioned')}</span>}
+              {(m.files ?? []).map(f => <div key={f.path} className="mt-2 flex flex-wrap items-center gap-2"><button type="button" onClick={()=>download(f)} className="flex max-w-full items-center gap-2 rounded-lg border border-line bg-paper px-3 py-2 text-left"><span>📎</span><span className="min-w-0 truncate">{f.name}</span><span className="shrink-0 text-xs text-mute">{t('chat.fileSize',{n:Math.max(1,Math.round(f.size/1024))})}</span></button><FilePreview source="message" id={m.id} path={f.path} name={f.name}/></div>)}
+              <time dateTime={m.created_at} title={new Date(m.created_at).toLocaleString(lang === 'ru' ? 'ru-RU' : 'en-US')} className={m.is_ai ? 'mt-1 block text-xs text-mute' : 'ml-2 text-xs text-mute'}>
+                {new Date(m.created_at).toLocaleTimeString(lang === 'ru' ? 'ru-RU' : 'en-US', { hour: '2-digit', minute: '2-digit' })}
               </time>
             </div>
             <div className="flex w-full shrink-0 flex-wrap items-center gap-3 border-t border-line pt-2 text-xs sm:w-auto sm:flex-col sm:items-end sm:border-t-0 sm:pt-0">
-            {!threadId&&<button disabled={threadBusy} className="text-orange-600" onClick={()=>openMessage(m.id)}>Ответы · {m.reply_count??0}</button>}
-            {canWrite&&!m.deleted_at&&<><button className="text-mute hover:text-orange-600" disabled={!boardId||!!taskBusy} onClick={()=>makeTask(m)}>{taskBusy===m.id?'Создание…':'Создать задачу'}</button><button className="text-mute" disabled={busy} onClick={()=>{setSelected([m.id]);setText('/task Создай задачу по выбранному сообщению')}}>ИИ-черновик</button><button className="text-mute" onClick={()=>pin(m)}>{m.is_pinned?'Открепить':'Закрепить'}</button></>}
-            {createdTasks[m.id]&&<a className="text-orange-600 underline" href={`/d/${depId}/board?task=${createdTasks[m.id]}`}>Открыть задачу ↗</a>}
-            {canWrite && !m.deleted_at && m.author_id === userId && <button type="button" className="self-start text-xs text-mute hover:text-red-600" aria-label="Удалить сообщение" onClick={() => removeMessage(m)}>Удалить</button>}
+            {!threadId&&<button disabled={threadBusy} className="text-orange-600" onClick={()=>openMessage(m.id)}>{t('chat.replies',{count:m.reply_count??0})}</button>}
+            {canWrite&&!m.deleted_at&&<><button className="text-mute hover:text-orange-600" disabled={!boardId||!!taskBusy} onClick={()=>makeTask(m)}>{taskBusy===m.id?t('common.creating'):t('chat.makeTask')}</button><button className="text-mute" disabled={busy} onClick={()=>{setSelected([m.id]);setText('/task Создай задачу по выбранному сообщению')}}>{t('chat.aiDraft')}</button><button className="text-mute" onClick={()=>pin(m)}>{m.is_pinned?t('chat.unpin'):t('chat.pin')}</button></>}
+            {createdTasks[m.id]&&<a className="text-orange-600 underline" href={`/d/${depId}/board?task=${createdTasks[m.id]}`}>{t('chat.openTask')}</a>}
+            {canWrite && !m.deleted_at && m.author_id === userId && <button type="button" className="self-start text-xs text-mute hover:text-red-600" aria-label={t('chat.deleteMessageAria')} onClick={() => removeMessage(m)}>{t('common.delete')}</button>}
             </div>
           </li>
         ))}
@@ -420,7 +422,7 @@ export default function Chat({
 
       {drafts.length > 0 && (
         <section className="my-3 rounded-lg border border-ink p-3">
-          <h3 className="text-sm font-medium">Черновики карточек — подтвердите</h3>
+          <h3 className="text-sm font-medium">{t('chat.draftsTitle')}</h3>
           <ul className="mt-2 space-y-2">
             {drafts.map((d, i) => (
               <li key={i} className="flex items-start gap-2 text-sm">
@@ -429,7 +431,7 @@ export default function Chat({
                   <p className="text-mute">{d.description}</p>
                 </div>
                 <button className="btn-solid py-1" onClick={() => confirmDraft(d, i)}>
-                  Создать
+                  {t('common.create')}
                 </button>
                 <button className="btn py-1" onClick={() => setDrafts((p) => p.filter((_, j) => j !== i))}>
                   ✕
@@ -443,26 +445,26 @@ export default function Chat({
       {error && <p role="alert" className="mt-2 text-sm text-red-600">{error}</p>}
       {preview && (
         <p className="mt-2 text-xs text-mute">
-          В ИИ уйдёт {preview.chars} симв. из чата; замаскировано элементов: {preview.masked}
-          {selected.length > 0 && ` · выбрано сообщений: ${selected.length}`}
-          {preview.withBoard && ' · плюс данные доски (задачи, исполнители, сроки; маскируются на сервере)'}
+          {t('chat.aiPreview', { chars: preview.chars, masked: preview.masked })}
+          {selected.length > 0 && ` · ${t('chat.selectedCount', { count: selected.length })}`}
+          {preview.withBoard && ` · ${t('chat.aiPreviewBoard')}`}
         </p>
       )}
 
-      {files.length > 0 && <div className="mt-3 flex flex-wrap gap-2">{files.map((f, i) => <span key={i} className="flex max-w-full items-center gap-2 rounded-lg bg-paper px-3 py-2 text-xs"><span className="truncate">📎 {f.name}</span><button type="button" disabled={busy} aria-label={`Убрать ${f.name}`} onClick={() => setFiles(prev => prev.filter((_, n) => n !== i))}>✕</button></span>)}</div>}
-      {canWrite&&mentionQuery!==null&&<div className="mt-2 flex flex-wrap gap-2 rounded-xl border border-line p-2">{Object.entries(looks).filter(([,look])=>look.name.toLowerCase().includes(mentionQuery.toLowerCase())).slice(0,8).map(([id,look])=><button type="button" key={id} className="btn" onClick={()=>{setText(prev=>prev.replace(/@[^@\n]*$/,`@${look.name} `));setMentionIds(prev=>[...new Set([...prev,id])]);setMentionQuery(null);textareaRef.current?.focus()}}>@{look.name}</button>)}<button type="button" aria-label="Закрыть подсказки упоминаний" className="text-xs text-mute" onClick={()=>setMentionQuery(null)}>✕</button></div>}
-      {canWrite&&<div className="mt-2 flex flex-wrap items-center gap-2 text-xs text-mute"><label>Упомянуть участника <select className="ml-1 rounded-lg border border-line bg-white p-1" aria-label="Упомянуть участника" value="" disabled={busy} onChange={e=>{const id=e.target.value;if(!id)return;setMentionIds(prev=>[...new Set([...prev,id])]);setText(prev=>`${prev}${prev&&!prev.endsWith(' ')?' ':''}@${looks[id].name} `);textareaRef.current?.focus()}}><option value="">@ Выбрать</option>{Object.entries(looks).map(([id,look])=><option key={id} value={id}>{look.name}</option>)}</select></label>{threadId&&<span>Сообщение будет отправлено в эту ветку</span>}</div>}
+      {files.length > 0 && <div className="mt-3 flex flex-wrap gap-2">{files.map((f, i) => <span key={i} className="flex max-w-full items-center gap-2 rounded-lg bg-paper px-3 py-2 text-xs"><span className="truncate">📎 {f.name}</span><button type="button" disabled={busy} aria-label={t('chat.removeFile',{name:f.name})} onClick={() => setFiles(prev => prev.filter((_, n) => n !== i))}>✕</button></span>)}</div>}
+      {canWrite&&mentionQuery!==null&&<div className="mt-2 flex flex-wrap gap-2 rounded-xl border border-line p-2">{Object.entries(looks).filter(([,look])=>look.name.toLowerCase().includes(mentionQuery.toLowerCase())).slice(0,8).map(([id,look])=><button type="button" key={id} className="btn" onClick={()=>{setText(prev=>prev.replace(/@[^@\n]*$/,`@${look.name} `));setMentionIds(prev=>[...new Set([...prev,id])]);setMentionQuery(null);textareaRef.current?.focus()}}>@{look.name}</button>)}<button type="button" aria-label={t('chat.closeMentions')} className="text-xs text-mute" onClick={()=>setMentionQuery(null)}>✕</button></div>}
+      {canWrite&&<div className="mt-2 flex flex-wrap items-center gap-2 text-xs text-mute"><label>{t('chat.mention')} <select className="ml-1 rounded-lg border border-line bg-white p-1" aria-label={t('chat.mention')} value="" disabled={busy} onChange={e=>{const id=e.target.value;if(!id)return;setMentionIds(prev=>[...new Set([...prev,id])]);setText(prev=>`${prev}${prev&&!prev.endsWith(' ')?' ':''}@${looks[id].name} `);textareaRef.current?.focus()}}><option value="">{t('chat.mentionChoose')}</option>{Object.entries(looks).map(([id,look])=><option key={id} value={id}>{look.name}</option>)}</select></label>{threadId&&<span>{t('chat.threadHint')}</span>}</div>}
       {canWrite ? (
         <form onSubmit={send} className="mt-2 flex items-end gap-2">
           <input ref={fileRef} type="file" multiple className="hidden" onChange={e => { pickFiles(Array.from(e.target.files ?? [])); e.target.value = ''; }} />
-          <button type="button" className="btn" disabled={busy} aria-label="Прикрепить файлы" onClick={() => fileRef.current?.click()}>📎</button>
+          <button type="button" className="btn" disabled={busy} aria-label={t('chat.attachAria')} onClick={() => fileRef.current?.click()}>📎</button>
           <textarea
             ref={textareaRef}
-            aria-label="Сообщение"
+            aria-label={t('chat.messageAria')}
             disabled={busy}
             className="input max-h-40 resize-y"
             rows={text.includes('\n') ? 4 : 1}
-            placeholder="Сообщение или /task /summary /ask /standup /meeting"
+            placeholder={t('chat.placeholder')}
             value={text}
             onChange={(e) => {setText(e.target.value);const match=e.target.value.slice(0,e.target.selectionStart).match(/@([^@\n]{0,40})$/);setMentionQuery(match?match[1]:null)}}
             onKeyDown={(e) => {
@@ -475,17 +477,17 @@ export default function Chat({
             maxLength={8000}
           />
           <button className="btn-solid" disabled={busy || (!text.trim() && !files.length)}>
-            {busy ? '…' : 'Отправить'}
+            {busy ? '…' : t('common.send')}
           </button>
         </form>
       ) : (
-        <p className="mt-2 text-sm text-mute">Режим просмотра: писать в чат нельзя.</p>
+        <p className="mt-2 text-sm text-mute">{t('chat.readOnly')}</p>
       )}
       <details className="mt-2 text-xs text-mute">
-        <summary className="cursor-pointer">ИИ-команды · Enter — отправить · Shift+Enter — новая строка · файлы до 10 МБ</summary>
+        <summary className="cursor-pointer">{t('chat.helpSummary')}</summary>
         <ul className="mt-1 space-y-0.5 font-mono">
-          {Object.values(COMMAND_HELP).map((h) => (
-            <li key={h}>{h}</li>
+          {SLASH_COMMANDS.map((c) => (
+            <li key={c}>{t(`chat.cmd.${c}`)}</li>
           ))}
         </ul>
       </details>

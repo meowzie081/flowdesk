@@ -12,6 +12,7 @@ import TaskWorkflow from './TaskWorkflow';
 import FilePreview from './FilePreview';
 import TaskHistory from './TaskHistory';
 import { checklistProgress, displayMentions, type ChecklistItem } from '@/lib/collaboration';
+import { useI18n } from './I18nProvider';
 
 interface Attachment {
   id: string;
@@ -38,8 +39,8 @@ interface ChatCtx {
 const MAX_BYTES = 10 * 1024 * 1024;
 
 const editSchema = z.object({
-  title: z.string().trim().min(1, 'Введите название').max(200, 'Не длиннее 200 символов'),
-  description: z.string().max(5000, 'Описание слишком длинное'),
+  title: z.string().trim().min(1, 'task.errTitle').max(200, 'task.errTitleLong'),
+  description: z.string().max(5000, 'task.errDescriptionLong'),
   blocked_reason: z.string().max(1000),
   priority: z.enum(['low', 'medium', 'high']),
   due_date: z.string().nullable(),
@@ -50,10 +51,10 @@ function safeName(name: string): string {
   return name.replace(/[^\p{L}\p{N}._-]+/gu, '_').slice(0, 120) || 'file';
 }
 
-function formatSize(bytes: number): string {
-  if (bytes < 1024) return `${bytes} Б`;
-  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} КБ`;
-  return `${(bytes / 1024 / 1024).toFixed(1)} МБ`;
+function formatSize(bytes: number, t: (key: string, vars?: Record<string, string | number>) => string): string {
+  if (bytes < 1024) return t('task.size.b', { n: bytes });
+  if (bytes < 1024 * 1024) return t('task.size.kb', { n: (bytes / 1024).toFixed(1) });
+  return t('task.size.mb', { n: (bytes / 1024 / 1024).toFixed(1) });
 }
 
 export default function TaskDetail({
@@ -82,6 +83,7 @@ export default function TaskDetail({
   onLabelCreated: (label: Label) => void;
 }) {
   const supabase = useMemo(() => createClient(), []);
+  const { t, lang } = useI18n();
   const [title, setTitle] = useState(task.title);
   const [description, setDescription] = useState(task.description);
   const [blockedReason,setBlockedReason] = useState(task.blocked_reason??'');
@@ -209,7 +211,7 @@ export default function TaskDetail({
       due_date: dueDate || null,
       assignee_id: assigneeId || null,
     });
-    if (!parsed.success) return setError(parsed.error.issues[0].message);
+    if (!parsed.success) return setError(t(parsed.error.issues[0].message));
     setError(null);
     setBusy(true);
     const { data, error } = await supabase
@@ -228,7 +230,7 @@ export default function TaskDetail({
     const file = e.target.files?.[0];
     e.target.value = '';
     if (!file) return;
-    if (file.size > MAX_BYTES) return setError('Файл больше 10 МБ');
+    if (file.size > MAX_BYTES) return setError(t('task.errFileTooBig'));
     setError(null);
     setBusy(true);
 
@@ -294,7 +296,7 @@ export default function TaskDetail({
   async function createLabel() {
     const name = newLabel.trim();
     if (!name) return;
-    if (name.length > 30) return setError('Метка не длиннее 30 символов');
+    if (name.length > 30) return setError(t('task.errLabelLong'));
     setError(null);
 
     // такая метка уже есть — просто назначаем её
@@ -310,7 +312,7 @@ export default function TaskDetail({
       .insert({ department_id: departmentId, name })
       .select('id, name')
       .single();
-    if (error || !data) return setError(error?.message ?? 'Не удалось создать метку');
+    if (error || !data) return setError(error?.message ?? t('task.errLabelCreate'));
     const created = data as Label;
     onLabelCreated(created);
 
@@ -325,7 +327,7 @@ export default function TaskDetail({
   async function addComment() {
     const body = commentText.trim();
     if (!body) return;
-    if (body.length > 2000) return setError('Комментарий не длиннее 2000 символов');
+    if (body.length > 2000) return setError(t('task.errCommentLong'));
     setError(null);
     const { data, error } = await supabase
       .from('comments')
@@ -356,18 +358,18 @@ export default function TaskDetail({
         onClick={(e) => e.stopPropagation()}
         role="dialog"
         aria-modal="true"
-        aria-label="Карточка задачи"
+        aria-label={t('task.dialogLabel')}
       >
         <div className="flex items-start justify-between gap-3">
-          <h2 className="text-lg font-semibold tracking-tight">Карточка</h2>
-          <button className="text-mute hover:text-ink" onClick={onClose} aria-label="Закрыть">
+          <h2 className="text-lg font-semibold tracking-tight">{t('task.card')}</h2>
+          <button className="text-mute hover:text-ink" onClick={onClose} aria-label={t('common.close')}>
             ✕
           </button>
         </div>
 
         <div className="mt-4 flex flex-col gap-3">
           <label className="text-sm">
-            Название
+            {t('task.title')}
             <input
               className="input mt-1"
               value={title}
@@ -377,7 +379,7 @@ export default function TaskDetail({
             />
           </label>
           <label className="text-sm">
-            Описание
+            {t('task.description')}
             <textarea
               className="input mt-1 min-h-24"
               value={description}
@@ -388,20 +390,20 @@ export default function TaskDetail({
           </label>
           <div className="flex gap-3">
             <label className="flex-1 text-sm">
-              Приоритет
+              {t('task.priority')}
               <select
                 className="input mt-1"
                 value={priority}
                 disabled={!canWrite}
                 onChange={(e) => setPriority(e.target.value as Task['priority'])}
               >
-                <option value="low">Низкий</option>
-                <option value="medium">Средний</option>
-                <option value="high">Высокий</option>
+                <option value="low">{t('board.priority.low')}</option>
+                <option value="medium">{t('board.priority.medium')}</option>
+                <option value="high">{t('board.priority.high')}</option>
               </select>
             </label>
             <label className="flex-1 text-sm">
-              Срок
+              {t('task.dueDate')}
               <input
                 type="date"
                 className="input mt-1"
@@ -412,14 +414,14 @@ export default function TaskDetail({
             </label>
           </div>
           <label className="text-sm">
-            Исполнитель
+            {t('task.assignee')}
             <select
               className="input mt-1"
               value={assigneeId}
               disabled={!canWrite}
               onChange={(e) => setAssigneeId(e.target.value)}
             >
-              <option value="">Не назначен</option>
+              <option value="">{t('task.unassigned')}</option>
               {members.map((m) => (
                 <option key={m.id} value={m.id}>
                   {m.name}
@@ -429,14 +431,14 @@ export default function TaskDetail({
           </label>
         </div>
 
-        <section className="mt-5"><h3 className="text-sm font-medium">Чек-лист · {checklistProgress(checklist).done}/{checklist.length}</h3><div className="mt-2 h-1.5 rounded-full bg-neutral-200"><div className="h-full rounded-full bg-orange-500" style={{width:`${checklistProgress(checklist).percent}%`}}/></div><ul className="mt-3 space-y-2">{checklist.map(item=><li key={item.id} className="flex items-center gap-2 text-sm"><label className="flex min-w-0 flex-1 items-center gap-2"><input type="checkbox" checked={item.is_done} disabled={!canWrite||checkBusy} onChange={()=>changeChecklist(item)}/><span className={item.is_done?'break-words text-mute line-through':'break-words'}>{item.title}</span></label>{canWrite&&<button aria-label={`Удалить пункт ${item.title}`} disabled={checkBusy} className="text-xs text-mute" onClick={()=>changeChecklist(item,true)}>✕</button>}</li>)}</ul>{canWrite&&<form onSubmit={addChecklist} className="mt-3 flex gap-2"><input className="input" aria-label="Новый пункт чек-листа" placeholder="Новый пункт" maxLength={200} value={newItem} onChange={e=>setNewItem(e.target.value)}/><button className="btn" disabled={checkBusy||!newItem.trim()}>Добавить</button></form>}</section>
-        <label className="mt-5 block text-sm">Причина блокировки<textarea className="input mt-1" disabled={!canWrite} maxLength={1000} placeholder="Что мешает завершить задачу?" value={blockedReason} onChange={e=>setBlockedReason(e.target.value)}/></label>
+        <section className="mt-5"><h3 className="text-sm font-medium">{t('board.checklist')} · {checklistProgress(checklist).done}/{checklist.length}</h3><div className="mt-2 h-1.5 rounded-full bg-neutral-200"><div className="h-full rounded-full bg-orange-500" style={{width:`${checklistProgress(checklist).percent}%`}}/></div><ul className="mt-3 space-y-2">{checklist.map(item=><li key={item.id} className="flex items-center gap-2 text-sm"><label className="flex min-w-0 flex-1 items-center gap-2"><input type="checkbox" checked={item.is_done} disabled={!canWrite||checkBusy} onChange={()=>changeChecklist(item)}/><span className={item.is_done?'break-words text-mute line-through':'break-words'}>{item.title}</span></label>{canWrite&&<button aria-label={t('task.removeItem',{name:item.title})} disabled={checkBusy} className="text-xs text-mute" onClick={()=>changeChecklist(item,true)}>✕</button>}</li>)}</ul>{canWrite&&<form onSubmit={addChecklist} className="mt-3 flex gap-2"><input className="input" aria-label={t('task.newItemAria')} placeholder={t('task.newItem')} maxLength={200} value={newItem} onChange={e=>setNewItem(e.target.value)}/><button className="btn" disabled={checkBusy||!newItem.trim()}>{t('common.add')}</button></form>}</section>
+        <label className="mt-5 block text-sm">{t('task.blockedReason')}<textarea className="input mt-1" disabled={!canWrite} maxLength={1000} placeholder={t('task.blockedPlaceholder')} value={blockedReason} onChange={e=>setBlockedReason(e.target.value)}/></label>
         {chatCtx && (
           <section className="mt-5">
             <div className="flex items-center justify-between">
-              <h3 className="text-sm font-medium">Из чата</h3>
+              <h3 className="text-sm font-medium">{t('task.fromChat')}</h3>
               <a href={`/d/${departmentId}/chat?message=${chatCtx.sourceId}`} className="text-xs text-mute hover:text-ink">
-                Открыть чат
+                {t('task.openChat')}
               </a>
             </div>
             <ul className="mt-2 space-y-1 rounded-md border border-line p-2 text-xs">
@@ -446,7 +448,7 @@ export default function TaskDetail({
                   className={m.id === chatCtx.sourceId ? 'rounded bg-neutral-100 px-1 py-0.5 font-medium' : 'px-1 text-mute'}
                 >
                   <span className="mr-1 text-mute">
-                    {m.is_ai ? 'ИИ' : <UserName look={memberById.get(m.author_id) ?? { name: 'участник' }} />}:
+                    {m.is_ai ? t('task.ai') : <UserName look={memberById.get(m.author_id) ?? { name: t('task.memberFallback') }} />}:
                   </span>
                   {displayMentions(m.body).length > 240 ? `${displayMentions(m.body).slice(0, 240)}…` : displayMentions(m.body)}
                 </li>
@@ -456,9 +458,9 @@ export default function TaskDetail({
         )}
 
         <section className="mt-5">
-          <h3 className="text-sm font-medium">Метки</h3>
+          <h3 className="text-sm font-medium">{t('task.labels')}</h3>
           <div className="mt-2 flex flex-wrap gap-1.5">
-            {labels.length === 0 && <p className="text-sm text-mute">Меток пока нет.</p>}
+            {labels.length === 0 && <p className="text-sm text-mute">{t('task.noLabels')}</p>}
             {labels.map((l) => {
               const on = selectedLabelIds.includes(l.id);
               return (
@@ -487,20 +489,20 @@ export default function TaskDetail({
             >
               <input
                 className="input py-1"
-                placeholder="Новая метка"
+                placeholder={t('task.newLabel')}
                 maxLength={30}
                 value={newLabel}
                 onChange={(e) => setNewLabel(e.target.value)}
               />
-              <button className="btn py-1">Добавить</button>
+              <button className="btn py-1">{t('common.add')}</button>
             </form>
           )}
         </section>
 
         <section className="mt-5">
-          <h3 className="text-sm font-medium">Файлы</h3>
+          <h3 className="text-sm font-medium">{t('task.files')}</h3>
           {files.length === 0 ? (
-            <p className="mt-1 text-sm text-mute">Файлов нет.</p>
+            <p className="mt-1 text-sm text-mute">{t('task.noFiles')}</p>
           ) : (
             <ul className="mt-2 divide-y divide-line rounded-md border border-line">
               {files.map((f) => (
@@ -508,10 +510,10 @@ export default function TaskDetail({
                   <button className="flex-1 truncate text-left underline" onClick={() => download(f)}>
                     {f.file_name}
                   </button>
-                  <span className="text-xs text-mute">{formatSize(f.size_bytes)}</span><FilePreview source="task" id={f.id} name={f.file_name}/>
+                  <span className="text-xs text-mute">{formatSize(f.size_bytes, t)}</span><FilePreview source="task" id={f.id} name={f.file_name}/>
                   {canWrite && (
                     <button className="text-xs text-mute hover:text-ink" onClick={() => remove(f)}>
-                      Удалить
+                      {t('common.delete')}
                     </button>
                   )}
                 </li>
@@ -520,24 +522,24 @@ export default function TaskDetail({
           )}
           {canWrite && (
             <label className="btn mt-3 cursor-pointer">
-              Прикрепить файл (до 10 МБ)
+              {t('task.attach')}
               <input type="file" className="hidden" onChange={upload} disabled={busy} />
             </label>
           )}
         </section>
 
         <section className="mt-5">
-          <h3 className="text-sm font-medium">Комментарии</h3>
+          <h3 className="text-sm font-medium">{t('task.comments')}</h3>
           {comments.length === 0 ? (
-            <p className="mt-1 text-sm text-mute">Комментариев нет.</p>
+            <p className="mt-1 text-sm text-mute">{t('task.noComments')}</p>
           ) : (
             <ul className="mt-2 space-y-2">
               {comments.map((c) => (
                 <li key={c.id} className="rounded-md border border-line p-2 text-sm">
                   <div className="flex items-center justify-between gap-2 text-xs text-mute">
                     <span>
-                      <UserName look={memberById.get(c.author_id) ?? { name: 'Участник' }} /> ·{' '}
-                      {new Date(c.created_at).toLocaleString('ru-RU', {
+                      <UserName look={memberById.get(c.author_id) ?? { name: t('task.memberFallback') }} /> ·{' '}
+                      {new Date(c.created_at).toLocaleString(lang === 'ru' ? 'ru-RU' : 'en-US', {
                         day: '2-digit',
                         month: '2-digit',
                         hour: '2-digit',
@@ -546,7 +548,7 @@ export default function TaskDetail({
                     </span>
                     {c.author_id === currentUserId && (
                       <button className="hover:text-ink" onClick={() => deleteComment(c.id)}>
-                        Удалить
+                        {t('common.delete')}
                       </button>
                     )}
                   </div>
@@ -565,12 +567,12 @@ export default function TaskDetail({
             >
               <input
                 className="input py-1"
-                placeholder="Написать комментарий"
+                placeholder={t('task.commentPlaceholder')}
                 maxLength={2000}
                 value={commentText}
                 onChange={(e) => setCommentText(e.target.value)}
               />
-              <button className="btn py-1">Отправить</button>
+              <button className="btn py-1">{t('common.send')}</button>
             </form>
           )}
         </section>
@@ -583,10 +585,10 @@ export default function TaskDetail({
         {canWrite && (
           <div className="mt-5 flex justify-end gap-2">
             <button className="btn" onClick={onClose}>
-              Отмена
+              {t('common.cancel')}
             </button>
             <button className="btn-solid" onClick={save} disabled={busy}>
-              Сохранить
+              {t('common.save')}
             </button>
           </div>
         )}

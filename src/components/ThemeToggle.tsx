@@ -2,8 +2,10 @@
 
 import { useEffect, useState } from 'react';
 import Icon from './Icon';
+import { useI18n } from './I18nProvider';
 
 export default function ThemeToggle() {
+  const { t } = useI18n();
   const [dark, setDark] = useState(false);
 
   useEffect(() => {
@@ -25,8 +27,8 @@ export default function ThemeToggle() {
     <button
       onClick={toggle}
       className="btn h-9 w-9 p-0"
-      aria-label={dark ? 'Включить светлую тему' : 'Включить тёмную тему'}
-      title={dark ? 'Светлая тема' : 'Тёмная тема'}
+      aria-label={dark ? t('nav.themeLight') : t('nav.themeDark')}
+      title={dark ? t('nav.themeLightTitle') : t('nav.themeDarkTitle')}
     >
       <Icon name={dark ? 'sun' : 'moon'} width={18} height={18}/>
     </button>

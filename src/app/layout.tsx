@@ -5,6 +5,8 @@ import './globals.css';
 import ServiceWorker from '@/components/ServiceWorker';
 import TelegramBridge from '@/components/TelegramBridge';
 import GoogleAnalytics from '@/components/GoogleAnalytics';
+import { I18nProvider } from '@/components/I18nProvider';
+import { getLang } from '@/lib/i18n/server';
 
 
 export const metadata: Metadata = {
@@ -26,16 +28,19 @@ export const viewport: Viewport = {
 const THEME_SCRIPT = `try{var t=localStorage.getItem('theme');if(t==='dark'||(t!=='light'&&matchMedia('(prefers-color-scheme: dark)').matches))document.documentElement.classList.add('dark')}catch(e){}`;
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
+  const lang = getLang();
   return (
-    <html lang="ru" suppressHydrationWarning>
+    <html lang={lang} suppressHydrationWarning>
       <head>
         <script dangerouslySetInnerHTML={{ __html: THEME_SCRIPT }} />
       </head>
       <body className="font-sans">
-        {children}
+        <I18nProvider lang={lang}>
+          {children}
+          <GoogleAnalytics />
+        </I18nProvider>
         <TelegramBridge />
         <ServiceWorker />
-        <GoogleAnalytics />
       </body>
     </html>
   );

@@ -2,8 +2,10 @@
 import { useMemo, useState } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import type { Column } from './Board';
+import { useI18n } from './I18nProvider';
 const FIELDS = 'id, name, position, is_done, color, wip_limit';
 export default function ColumnSettings({ boardId, columns, onChange }: { boardId: string; columns: Column[]; onChange: (columns: Column[]) => void }) {
+ const { t } = useI18n();
  const supabase = useMemo(() => createClient(), []);
  const [editing, setEditing] = useState<Column | null>(null);
  const [adding, setAdding] = useState(false);
@@ -16,7 +18,7 @@ export default function ColumnSettings({ boardId, columns, onChange }: { boardId
  }
  async function save(e: React.FormEvent) {
   e.preventDefault(); if(!editing || busy) return;
-  if(!editing.name.trim()) return setError('Введите название');
+  if(!editing.name.trim()) return setError(t('board.errTitle'));
   setBusy(true);setError(null);
   try {
    const value = {name:editing.name.trim(),color:editing.color,is_done:editing.is_done,wip_limit:editing.wip_limit};
@@ -32,14 +34,14 @@ export default function ColumnSettings({ boardId, columns, onChange }: { boardId
   catch(e){setError((e as {message:string}).message);}finally{setBusy(false);}
  }
  async function remove(id:string) {
-  if(!confirm('Удалить пустую колонку?'))return;setBusy(true);setError(null);
+  if(!confirm(t('column.deleteConfirm')))return;setBusy(true);setError(null);
   try {const {error}=await supabase.rpc('delete_empty_column',{col:id});if(error)throw error;await refresh();}
   catch(e){setError((e as {message:string}).message);}finally{setBusy(false);}
  }
- return <details className="card mb-4"><summary className="cursor-pointer text-sm font-medium">Настроить колонки и лимиты задач</summary>
-  <ul className="mt-3 space-y-2">{columns.map((c,i)=><li key={c.id} className="flex flex-wrap items-center gap-2 text-sm"><span className="h-3 w-3 rounded-full" style={{background:c.color}}/><span className="mr-auto">{c.name}{c.is_done?' · завершено':''}{c.wip_limit?` · лимит ${c.wip_limit}`:''}</span><button className="btn" disabled={busy||i===0} onClick={()=>reorder(i,-1)} aria-label={`Передвинуть ${c.name} влево`}>←</button><button className="btn" disabled={busy||i===columns.length-1} onClick={()=>reorder(i,1)} aria-label={`Передвинуть ${c.name} вправо`}>→</button><button className="btn" disabled={busy} onClick={()=>{setEditing({...c});setAdding(false)}}>Изменить</button><button className="btn" disabled={busy} onClick={()=>remove(c.id)}>Удалить</button></li>)}</ul>
-  <button className="btn mt-3" disabled={busy} onClick={()=>{setEditing(fresh());setAdding(true)}}>+ Колонка</button>
-  {editing && <form className="mt-4 flex flex-wrap items-end gap-3 border-t border-line pt-3" onSubmit={save}><label className="text-xs">Название<input className="input mt-1" required maxLength={60} value={editing.name} onChange={e=>setEditing({...editing,name:e.target.value})}/></label><label className="text-xs">Цвет<input type="color" className="mt-1 block h-10 w-14" value={editing.color} onChange={e=>setEditing({...editing,color:e.target.value})}/></label><label className="text-xs">Лимит (пусто — без лимита)<input type="number" className="input mt-1 w-32" min={1} max={999} value={editing.wip_limit??''} onChange={e=>setEditing({...editing,wip_limit:e.target.value?Number(e.target.value):null})}/></label><label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={editing.is_done} onChange={e=>setEditing({...editing,is_done:e.target.checked})}/>Завершённые задачи</label><button className="btn-solid" disabled={busy}>Сохранить</button><button type="button" className="btn" onClick={()=>setEditing(null)}>Отмена</button></form>}
+ return <details className="card mb-4"><summary className="cursor-pointer text-sm font-medium">{t('column.settings')}</summary>
+  <ul className="mt-3 space-y-2">{columns.map((c,i)=><li key={c.id} className="flex flex-wrap items-center gap-2 text-sm"><span className="h-3 w-3 rounded-full" style={{background:c.color}}/><span className="mr-auto">{c.name}{c.is_done?` · ${t('column.done')}`:''}{c.wip_limit?` · ${t('column.limit',{n:c.wip_limit})}`:''}</span><button className="btn" disabled={busy||i===0} onClick={()=>reorder(i,-1)} aria-label={t('column.moveLeft',{name:c.name})}>←</button><button className="btn" disabled={busy||i===columns.length-1} onClick={()=>reorder(i,1)} aria-label={t('column.moveRight',{name:c.name})}>→</button><button className="btn" disabled={busy} onClick={()=>{setEditing({...c});setAdding(false)}}>{t('column.edit')}</button><button className="btn" disabled={busy} onClick={()=>remove(c.id)}>{t('common.delete')}</button></li>)}</ul>
+  <button className="btn mt-3" disabled={busy} onClick={()=>{setEditing(fresh());setAdding(true)}}>{t('column.add')}</button>
+  {editing && <form className="mt-4 flex flex-wrap items-end gap-3 border-t border-line pt-3" onSubmit={save}><label className="text-xs">{t('column.name')}<input className="input mt-1" required maxLength={60} value={editing.name} onChange={e=>setEditing({...editing,name:e.target.value})}/></label><label className="text-xs">{t('column.color')}<input type="color" className="mt-1 block h-10 w-14" value={editing.color} onChange={e=>setEditing({...editing,color:e.target.value})}/></label><label className="text-xs">{t('column.wipLabel')}<input type="number" className="input mt-1 w-32" min={1} max={999} value={editing.wip_limit??''} onChange={e=>setEditing({...editing,wip_limit:e.target.value?Number(e.target.value):null})}/></label><label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={editing.is_done} onChange={e=>setEditing({...editing,is_done:e.target.checked})}/>{t('column.isDone')}</label><button className="btn-solid" disabled={busy}>{t('common.save')}</button><button type="button" className="btn" onClick={()=>setEditing(null)}>{t('common.cancel')}</button></form>}
   {error&&<p role="alert" className="mt-2 text-sm text-red-600">{error}</p>}
  </details>;
 }

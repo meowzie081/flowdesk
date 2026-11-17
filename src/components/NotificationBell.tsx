@@ -5,6 +5,7 @@ import Link from 'next/link';
 import Icon from './Icon';
 import { useEffect, useMemo, useState } from 'react';
 import { createClient } from '@/lib/supabase/client';
+import { useI18n } from './I18nProvider';
 
 interface Notice {
   id: string;
@@ -22,6 +23,7 @@ interface Notice {
 const FIELDS = 'id, department_id, task_id, message_id, campaign_id, kind, title, body, read_at, created_at';
 
 export default function NotificationBell({ userId }: { userId: string }) {
+  const { t } = useI18n();
   const supabase = useMemo(() => createClient(), []);
   const [items, setItems] = useState<Notice[]>([]);
   const [open, setOpen] = useState(false);
@@ -66,8 +68,8 @@ export default function NotificationBell({ userId }: { userId: string }) {
       <button
         className="btn relative h-9 min-w-9 gap-1.5 px-2"
         onClick={() => setOpen((o) => !o)}
-        aria-label="Уведомления"
-        title="Уведомления"
+        aria-label={t('nav.notifications')}
+        title={t('nav.notifications')}
       >
         <Icon name="bell" width={18} height={18}/>
         {unread > 0 && (
@@ -77,16 +79,16 @@ export default function NotificationBell({ userId }: { userId: string }) {
       {open && (
         <div className="absolute right-0 z-20 mt-2 w-80 max-w-[90vw] rounded-lg border border-line bg-white p-2 shadow-lg">
           <div className="mb-1 flex items-center justify-between px-2 py-1">
-            <Link href="/profile#notifications" className="text-sm font-medium underline" onClick={() => setOpen(false)}>Уведомления · настройки</Link>
+            <Link href="/profile#notifications" className="text-sm font-medium underline" onClick={() => setOpen(false)}>{t('bell.settings')}</Link>
             {unread > 0 && (
               <button className="text-xs text-mute hover:text-ink" onClick={markAllRead}>
-                Прочитать все
+                {t('bell.markAllRead')}
               </button>
             )}
           </div>
           {error&&<p role="alert" className="text-xs text-red-600">{error}</p>}
           {items.length === 0 ? (
-            <p className="px-2 py-3 text-sm text-mute">Пока ничего нет.</p>
+            <p className="px-2 py-3 text-sm text-mute">{t('bell.empty')}</p>
           ) : (
             <ul className="max-h-80 overflow-y-auto">
               {items.map((n) => (
@@ -99,7 +101,7 @@ export default function NotificationBell({ userId }: { userId: string }) {
                     }`}
                   >
                     <span className="block text-xs text-mute">
-                      {{assigned:'Вам назначена задача',comment:'Новый комментарий',mention:'Вас упомянули',reply:'Ответ в обсуждении',help_request:'Нужна ваша помощь',help_response:'Ответ на запрос помощи',announcement:'Объявление отдела'}[n.kind]}
+                      {t(`bell.kind.${n.kind}`)}
                     </span>
                     <span className="block font-medium">{n.title}</span>
                     {n.body && <span className="block truncate text-xs text-mute">{n.body}</span>}

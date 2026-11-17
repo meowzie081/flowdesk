@@ -9,6 +9,7 @@ import UserName from './UserName';
 import ColumnSettings from './ColumnSettings';
 import { checklistProgress, columnLoad, type ChecklistItem } from '@/lib/collaboration';
 import { applyColumnChange, applyTaskChange, mergeFetchedTasks, type RealtimeChange } from '@/lib/board-sync';
+import { useI18n } from './I18nProvider';
 
 export interface Column {
   id: string;
@@ -47,10 +48,8 @@ const TASK_FIELDS =
   'id, board_id, archived_at, column_id, title, description, priority, due_date, position, assignee_id, blocked_reason, task_checklist(id, title, is_done, position)';
 
 const taskSchema = z.object({
-  title: z.string().trim().min(1, 'Введите название').max(200),
+  title: z.string().trim().min(1).max(200),
 });
-
-const PRIORITY_LABEL = { low: 'Низкий', medium: 'Средний', high: 'Высокий' } as const;
 
 export default function Board({
   depId,
@@ -76,6 +75,7 @@ export default function Board({
   openTaskId?: string | null;
 }) {
   const supabase = useMemo(() => createClient(), []);
+  const { t: tr, lang } = useI18n();
   const [columns, setColumns] = useState<Column[]>(initialColumns);
   const [tasks, setTasks] = useState<Task[]>(initialTasks);
   const [query, setQuery] = useState('');
@@ -191,7 +191,7 @@ export default function Board({
 
   async function addTask(columnId: string) {
     const parsed = taskSchema.safeParse({ title: newTitle[columnId] ?? '' });
-    if (!parsed.success) return setError(parsed.error.issues[0].message);
+    if (!parsed.success) return setError(tr('board.errTitle'));
     setError(null);
     const { data, error } = await supabase
       .from('tasks')
@@ -273,7 +273,7 @@ export default function Board({
       <div className="mb-4 flex flex-wrap gap-2">
         <input
           className="input max-w-xs"
-          placeholder="Поиск по задачам"
+          placeholder={tr('board.searchPlaceholder')}
           value={query}
           onChange={(e) => setQuery(e.target.value)}
         />
@@ -281,22 +281,22 @@ export default function Board({
           className="input w-auto"
           value={priority}
           onChange={(e) => setPriority(e.target.value as typeof priority)}
-          aria-label="Фильтр по приоритету"
+          aria-label={tr('board.filterPriority')}
         >
-          <option value="all">Любой приоритет</option>
-          <option value="high">Высокий</option>
-          <option value="medium">Средний</option>
-          <option value="low">Низкий</option>
+          <option value="all">{tr('board.anyPriority')}</option>
+          <option value="high">{tr('board.priority.high')}</option>
+          <option value="medium">{tr('board.priority.medium')}</option>
+          <option value="low">{tr('board.priority.low')}</option>
         </select>
         <select
           className="input w-auto"
           value={assignee}
           onChange={(e) => setAssignee(e.target.value)}
-          aria-label="Фильтр по исполнителю"
+          aria-label={tr('board.filterAssignee')}
         >
-          <option value="all">Все исполнители</option>
-          <option value="me">Мои задачи</option>
-          <option value="none">Без исполнителя</option>
+          <option value="all">{tr('board.allAssignees')}</option>
+          <option value="me">{tr('board.filterMe')}</option>
+          <option value="none">{tr('board.noAssignee')}</option>
           {members.map((m) => (
             <option key={m.id} value={m.id}>
               {m.name}
@@ -308,9 +308,9 @@ export default function Board({
             className="input w-auto"
             value={labelFilter}
             onChange={(e) => setLabelFilter(e.target.value)}
-            aria-label="Фильтр по метке"
+            aria-label={tr('board.filterLabel')}
           >
-            <option value="all">Все метки</option>
+            <option value="all">{tr('board.allLabels')}</option>
             {labelList.map((l) => (
               <option key={l.id} value={l.id}>
                 {l.name}
@@ -319,7 +319,7 @@ export default function Board({
           </select>
         )}
         <a href={`/api/export?dep=${depId}`} className="btn ml-auto">
-          Экспорт CSV
+          {tr('board.exportCsv')}
         </a>
       </div>
       {error && <p className="mb-3 text-sm text-red-600">{error}</p>}
@@ -344,7 +344,7 @@ export default function Board({
               {col.name}{' '}
               <span className={columnLoad(tasks.filter(t=>t.column_id===col.id).length,col.wip_limit).exceeded ? 'text-red-600' : 'text-mute'}>{columnLoad(tasks.filter(t=>t.column_id===col.id).length,col.wip_limit).label}</span>
             </h3>
-            {columnLoad(tasks.filter(t=>t.column_id===col.id).length,col.wip_limit).exceeded && <p className="mb-2 text-xs text-red-600">Лимит превышен. Завершите текущие задачи.</p>}
+            {columnLoad(tasks.filter(t=>t.column_id===col.id).length,col.wip_limit).exceeded && <p className="mb-2 text-xs text-red-600">{tr('board.wipExceeded')}</p>}
             <ul className="flex min-h-8 flex-col gap-2">
               {visible
                 .filter((t) => t.column_id === col.id)
@@ -365,18 +365,18 @@ export default function Board({
                       {t.title}
                     </button>
                     <p className="mt-1 text-xs text-mute">
-                      {PRIORITY_LABEL[t.priority]}
-                      {t.due_date && ` · до ${new Date(t.due_date).toLocaleDateString('ru-RU')}`}
+                      {tr(`board.priority.${t.priority}`)}
+                      {t.due_date && ` · ${tr('board.duePrefix')} ${new Date(t.due_date).toLocaleDateString(lang === 'ru' ? 'ru-RU' : 'en-US')}`}
                       {t.assignee_id && (
                         <>
                           {' · '}
-                          <UserName look={memberById.get(t.assignee_id) ?? { name: 'исполнитель' }} />
+                          <UserName look={memberById.get(t.assignee_id) ?? { name: tr('board.assigneeFallback') }} />
                         </>
                       )}
                     </p>
-                    {readiness[t.id]>0&&<p className="mt-2 text-xs text-orange-600">Ожидает задач: {readiness[t.id]}</p>}
-                    {t.blocked_reason && <p className="mt-2 rounded-lg bg-red-500/10 px-2 py-1 text-xs text-red-600">Блокер: {t.blocked_reason}</p>}
-                    {t.task_checklist?.length > 0 && <div className="mt-2"><div className="mb-1 flex justify-between text-xs text-mute"><span>Чек-лист</span><span>{checklistProgress(t.task_checklist).done}/{t.task_checklist.length}</span></div><div className="h-1.5 rounded-full bg-neutral-200"><div className="h-full rounded-full bg-orange-500" style={{width:`${checklistProgress(t.task_checklist).percent}%`}}/></div></div>}
+                    {readiness[t.id]>0&&<p className="mt-2 text-xs text-orange-600">{tr('board.waitingTasks', { count: readiness[t.id] })}</p>}
+                    {t.blocked_reason && <p className="mt-2 rounded-lg bg-red-500/10 px-2 py-1 text-xs text-red-600">{tr('board.blocker', { reason: t.blocked_reason })}</p>}
+                    {t.task_checklist?.length > 0 && <div className="mt-2"><div className="mb-1 flex justify-between text-xs text-mute"><span>{tr('board.checklist')}</span><span>{checklistProgress(t.task_checklist).done}/{t.task_checklist.length}</span></div><div className="h-1.5 rounded-full bg-neutral-200"><div className="h-full rounded-full bg-orange-500" style={{width:`${checklistProgress(t.task_checklist).percent}%`}}/></div></div>}
                     {(taskLabels[t.id] ?? []).length > 0 && (
                       <div className="mt-1 flex flex-wrap gap-1">
                         {(taskLabels[t.id] ?? []).map((id) => (
@@ -395,7 +395,7 @@ export default function Board({
                           className="rounded border border-line bg-white px-1 py-0.5 text-xs"
                           value={t.column_id}
                           onChange={(e) => moveTask(t.id, e.target.value)}
-                          aria-label="Переместить в колонку"
+                          aria-label={tr('board.moveToColumn')}
                         >
                           {columns.map((c) => (
                             <option key={c.id} value={c.id}>
@@ -407,7 +407,7 @@ export default function Board({
                           className="ml-auto text-xs text-mute hover:text-ink"
                           onClick={() => removeTask(t.id)}
                         >
-                          В архив
+                          {tr('board.archive')}
                         </button>
                       </div>
                     )}
@@ -424,7 +424,7 @@ export default function Board({
               >
                 <input
                   className="input py-1"
-                  placeholder="Новая задача"
+                  placeholder={tr('board.newTask')}
                   value={newTitle[col.id] ?? ''}
                   onChange={(e) => setNewTitle((p) => ({ ...p, [col.id]: e.target.value }))}
                 />

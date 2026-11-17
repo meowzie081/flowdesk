@@ -5,6 +5,7 @@ import { useMemo, useState } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import { COLORS, ICONS, isHexColor, isReadableColor, profileSchema } from '@/lib/profile';
 import UserName from './UserName';
+import { useI18n } from './I18nProvider';
 
 export default function ProfileForm({
   userId,
@@ -14,6 +15,7 @@ export default function ProfileForm({
   initial: { name: string; icon: string | null; color: string | null };
 }) {
   const router = useRouter();
+  const { t } = useI18n();
   const supabase = useMemo(() => createClient(), []);
   const [name, setName] = useState(initial.name);
   const [icon, setIcon] = useState<string | null>(initial.icon);
@@ -36,7 +38,7 @@ export default function ProfileForm({
     if (value === '') return setColor(null);
     if (isHexColor(value)) {
       setColor(value.toLowerCase());
-      setError(isReadableColor(value) ? null : 'Этот цвет плохо читается на светлой или тёмной теме');
+      setError(isReadableColor(value) ? null : t('profile.errContrast'));
     }
   }
 
@@ -44,7 +46,7 @@ export default function ProfileForm({
     e.preventDefault();
     setSaved(false);
     const parsed = profileSchema.safeParse({ full_name: name, avatar_icon: icon, name_color: color });
-    if (!parsed.success) return setError(parsed.error.issues[0].message);
+    if (!parsed.success) return setError(t(parsed.error.issues[0].message));
     setError(null);
     setBusy(true);
     const { error } = await supabase.from('profiles').update(parsed.data).eq('id', userId);
@@ -57,15 +59,15 @@ export default function ProfileForm({
   return (
     <form onSubmit={save} className="space-y-6">
       <section>
-        <h2 className="text-sm font-medium">Так вас видят коллеги</h2>
+        <h2 className="text-sm font-medium">{t('profile.form.previewTitle')}</h2>
         <p className="mt-2 rounded-lg border border-line bg-white p-4 text-lg">
-          <UserName look={{ name: name.trim() || 'Ваше имя', icon, color }} />
+          <UserName look={{ name: name.trim() || t('profile.form.nameFallback'), icon, color }} />
         </p>
       </section>
 
       <section>
         <label className="text-sm font-medium" htmlFor="full_name">
-          Имя
+          {t('profile.form.name')}
         </label>
         <input
           id="full_name"
@@ -80,7 +82,7 @@ export default function ProfileForm({
       </section>
 
       <section>
-        <h2 className="text-sm font-medium">Иконка</h2>
+        <h2 className="text-sm font-medium">{t('profile.form.icon')}</h2>
         <div className="mt-2 flex flex-wrap gap-2">
           <button
             type="button"
@@ -90,13 +92,13 @@ export default function ProfileForm({
             }}
             className={`h-10 rounded-md border px-3 text-xs ${icon === null ? 'border-ink' : 'border-line text-mute'}`}
           >
-            Без иконки
+            {t('profile.form.noIcon')}
           </button>
           {ICONS.map((i) => (
             <button
               key={i}
               type="button"
-              aria-label={`Иконка ${i}`}
+              aria-label={t('profile.form.iconAria', { icon: i })}
               aria-pressed={icon === i}
               onClick={() => {
                 setIcon(i);
@@ -111,20 +113,20 @@ export default function ProfileForm({
       </section>
 
       <section>
-        <h2 className="text-sm font-medium">Цвет ника</h2>
+        <h2 className="text-sm font-medium">{t('profile.form.color')}</h2>
         <div className="mt-2 flex flex-wrap items-center gap-2">
           <button
             type="button"
             onClick={() => pickColor(null)}
             className={`h-8 rounded-md border px-3 text-xs ${color === null ? 'border-ink' : 'border-line text-mute'}`}
           >
-            Обычный
+            {t('profile.form.defaultColor')}
           </button>
           {COLORS.map((c) => (
             <button
               key={c}
               type="button"
-              aria-label={`Цвет ${c}`}
+              aria-label={t('profile.form.colorAria', { color: c })}
               aria-pressed={color === c}
               onClick={() => pickColor(c)}
               style={{ backgroundColor: c }}
@@ -134,17 +136,17 @@ export default function ProfileForm({
         </div>
         <div className="mt-3 flex items-center gap-2">
           <label className="text-xs text-mute" htmlFor="hex">
-            Свой цвет
+            {t('profile.form.customColor')}
           </label>
           <input
             type="color"
-            aria-label="Выбрать цвет"
+            aria-label={t('profile.form.pickColor')}
             value={color ?? '#2563eb'}
             onChange={(e) => {
               setColor(e.target.value);
               setHex(e.target.value);
               setSaved(false);
-              setError(isReadableColor(e.target.value) ? null : 'Этот цвет плохо читается на светлой или тёмной теме');
+              setError(isReadableColor(e.target.value) ? null : t('profile.errContrast'));
             }}
             className="h-8 w-10 cursor-pointer rounded border border-line bg-white p-0.5"
           />
@@ -157,13 +159,13 @@ export default function ProfileForm({
             onChange={(e) => onHexInput(e.target.value)}
           />
         </div>
-        <p className="mt-1 text-xs text-mute">Слишком светлые и слишком тёмные цвета недоступны: ник должен читаться в обеих темах.</p>
+        <p className="mt-1 text-xs text-mute">{t('profile.form.colorHint')}</p>
       </section>
 
       {error && <p className="text-sm text-red-600">{error}</p>}
-      {saved && <p className="text-sm text-mute">Сохранено.</p>}
+      {saved && <p className="text-sm text-mute">{t('profile.form.saved')}</p>}
       <button className="btn-solid" disabled={busy}>
-        {busy ? 'Сохраняю…' : 'Сохранить'}
+        {busy ? t('common.saving') : t('common.save')}
       </button>
     </form>
   );

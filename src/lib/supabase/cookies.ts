@@ -55,6 +55,8 @@ export function parseDocumentCookies(): { name: string; value: string }[] {
 
 /** Удаляет повреждённые auth-cookie в браузере до создания клиента Supabase. */
 export function purgeInvalidAuthCookies(): void {
+  // Клиентские компоненты вызывают createClient() и при SSR — там document нет.
+  if (typeof document === 'undefined') return;
   const all = parseDocumentCookies();
   const valid = new Set(sanitizeAuthCookies(all).map((c) => c.name));
   for (const cookie of all) {
