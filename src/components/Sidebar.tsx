@@ -11,6 +11,7 @@ const items:{suffix:string;label:string;icon:IconName}[]=[
  {suffix:'/archive',label:'Архив',icon:'archive'},{suffix:'/summary',label:'Сводка',icon:'summary'},
  {suffix:'/announcements',label:'Объявления',icon:'bell'},
  {suffix:'/team',label:'Команда',icon:'team'},
+ {suffix:'/webhooks',label:'Вебхуки',icon:'webhook'},
 ];
 export default function Sidebar({depId,departments}:{depId:string;departments:{id:string;name:string}[]}){
  const path=usePathname();

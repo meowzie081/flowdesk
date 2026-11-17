@@ -1,4 +1,5 @@
 import NotificationSettings from '@/components/NotificationSettings';
+import ApiTokens from '@/components/ApiTokens';
 import Onboarding from '@/components/Onboarding';
 import Link from 'next/link';
 import { accountLabel } from '@/lib/accounts';
@@ -21,6 +22,12 @@ export default async function ProfilePage() {
     .eq('id', user.id)
     .maybeSingle();
   const look = lookFromRow(profile, user.email?.split('@')[0] ?? '');
+
+  const { data: apiTokens, error: tokensError } = await supabase
+    .from('api_tokens')
+    .select('id,name,token_prefix,created_at,last_used_at')
+    .eq('user_id', user.id)
+    .order('created_at');
 
   if (profile?.must_change_password) {
     return (
@@ -49,6 +56,7 @@ export default async function ProfilePage() {
       </div>
       <PasswordForm/>
       <NotificationSettings/>
+      <ApiTokens tokens={tokensError ? null : (apiTokens ?? [])}/>
       <Onboarding userId={user.id} auto={false}/>
       <form action="/auth/signout" method="post" className="mt-10 border-t border-line pt-6">
         <button className="btn">Выйти из аккаунта</button>

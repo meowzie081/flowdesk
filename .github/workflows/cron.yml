@@ -41,3 +41,12 @@ jobs:
             -H "Authorization: Bearer $CRON_SECRET" \
             -H "Content-Type: application/json" -d '{}'
           echo
+      - name: Webhook delivery
+        if: steps.guard.outputs.skip != 'true'
+        shell: bash
+        run: |
+          curl --fail --show-error --silent --max-time 60 \
+            -X POST "${BASE_URL%/}/api/webhooks/dispatch" \
+            -H "Authorization: Bearer $CRON_SECRET" \
+            -H "Content-Type: application/json" -d '{}'
+          echo

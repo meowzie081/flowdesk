@@ -2,11 +2,11 @@
 
 ## Состояние поставки
 
-Базовая версия опубликована: https://flowdesk-alpha-teal.vercel.app, исходники: https://github.com/meowzie081/flowdesk. В исходниках также: Realtime доски, cron через GitHub Actions, rate limiting, Sentry, принудительная смена временного пароля и слой организаций с тарифами. Если 0001–0014 уже применены, выполните `0016_fix_department_insert_returning.sql`, `0017_rate_limits.sql`, `0018_force_password_change.sql`, `0019_performance_indexes.sql`, `0020_organizations.sql`, `0021_plans_limits.sql`, `0022_org_usage.sql` и `0023_import_board.sql`, затем опубликуйте код. Настройка внешней доставки и отдельного Cron: [NOTIFICATIONS.md](NOTIFICATIONS.md).
+Базовая версия опубликована: https://flowdesk-alpha-teal.vercel.app, исходники: https://github.com/meowzie081/flowdesk. В исходниках также: Realtime доски, cron через GitHub Actions, rate limiting, Sentry, принудительная смена временного пароля и слой организаций с тарифами. Если 0001–0014 уже применены, выполните `0016_fix_department_insert_returning.sql`, `0017_rate_limits.sql`, `0018_force_password_change.sql`, `0019_performance_indexes.sql`, `0020_organizations.sql`, `0021_plans_limits.sql`, `0022_org_usage.sql`, `0023_import_board.sql` и `0024_api_webhooks.sql`, затем опубликуйте код. Настройка внешней доставки и отдельного Cron: [NOTIFICATIONS.md](NOTIFICATIONS.md). Публичный API и вебхуки: [API.md](API.md).
 
 ## Текущая схема Vercel + Supabase
 
-Веб-приложение работает на Vercel, данные, Auth, Storage и Realtime — в Supabase. Периодические повторы `run_due_recurring()` и доставка уведомлений запускаются планировщиком: GitHub Actions cron (`.github/workflows/cron.yml`, раз в 5 минут, без VPS) либо Supabase Cron — настройка в [NOTIFICATIONS.md](NOTIFICATIONS.md). Постоянный Docker scheduler для этой схемы не нужен. Build Command в Vercel: `npm run typecheck && npm test && npm run test:db && npm run build`.
+Веб-приложение работает на Vercel, данные, Auth, Storage и Realtime — в Supabase. Периодические повторы `run_due_recurring()`, доставка уведомлений и доставка вебхуков запускаются планировщиком: GitHub Actions cron (`.github/workflows/cron.yml`, раз в 5 минут, без VPS) либо Supabase Cron — настройка в [NOTIFICATIONS.md](NOTIFICATIONS.md). Постоянный Docker scheduler для этой схемы не нужен. Build Command в Vercel: `npm run typecheck && npm test && npm run test:db && npm run build`.
 
 Инструкции ниже для VPS остаются альтернативным вариантом размещения.
 
@@ -33,7 +33,7 @@ git push -u origin main
 
 ## 2. Supabase
 
-Создайте или используйте рабочий проект, выполните миграции `0001`–`0023` по порядку. Уже применённые миграции повторно не запускайте. `0020`–`0022` добавляют организации, тарифы, лимиты и счётчик использования, бэкфиллят существующие отделы в организации один-к-одному; `0023` — атомарный импорт досок из Trello/CSV. В Auth укажите HTTPS Site URL приложения и redirect URL `https://ВАШ_ДОМЕН/auth/callback`. Для Google OAuth включите провайдера и настройте redirect URL Supabase в Google Cloud.
+Создайте или используйте рабочий проект, выполните миграции `0001`–`0024` по порядку. Уже применённые миграции повторно не запускайте. `0020`–`0022` добавляют организации, тарифы, лимиты и счётчик использования, бэкфиллят существующие отделы в организации один-к-одному; `0023` — атомарный импорт досок из Trello/CSV; `0024` — персональные API-токены, вебхуки и очередь их доставки. В Auth укажите HTTPS Site URL приложения и redirect URL `https://ВАШ_ДОМЕН/auth/callback`. Для Google OAuth включите провайдера и настройте redirect URL Supabase в Google Cloud.
 
 ## 3. Сервер и HTTPS
 
