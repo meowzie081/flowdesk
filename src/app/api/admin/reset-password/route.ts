@@ -3,10 +3,12 @@ import { z } from 'zod';
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { sameOrigin } from '@/lib/http';
+import { checkRateLimit, tooManyRequests } from '@/lib/rate-limit';
 const schema=z.object({departmentId:z.string().uuid(),userId:z.string().uuid(),password:z.string().min(8).max(128)});
 export async function POST(req:Request) {
  if(!sameOrigin(req))return NextResponse.json({error:'Недопустимый источник запроса'},{status:403});
  const sb=createClient();const {data:{user}}=await sb.auth.getUser();if(!user)return NextResponse.json({error:'Войдите в аккаунт'},{status:401});
+ if(!(await checkRateLimit(`admin-reset:${user.id}`,10,60)))return tooManyRequests();
  const parsed=schema.safeParse(await req.json().catch(()=>null));if(!parsed.success)return NextResponse.json({error:'Проверьте пользователя и пароль (8–128 символов)'},{status:400});
  const admin=createAdminClient();if(!admin)return NextResponse.json({error:'Не настроен серверный ключ Supabase'},{status:503});
  const {data:event,error}=await sb.rpc('begin_password_reset',{dep:parsed.data.departmentId,target:parsed.data.userId});

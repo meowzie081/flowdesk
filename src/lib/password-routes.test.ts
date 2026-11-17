@@ -1,4 +1,5 @@
 import {describe,it,expect,vi,beforeEach} from 'vitest';
+vi.mock('server-only',()=>({}));
 const f=vi.hoisted(()=>({session:{auth:{getUser:vi.fn(),signOut:vi.fn()},rpc:vi.fn()},isolated:{auth:{signInWithPassword:vi.fn(),updateUser:vi.fn(),signOut:vi.fn()}},admin:{auth:{admin:{updateUserById:vi.fn()}},rpc:vi.fn()},configured:true}));
 vi.mock('@/lib/supabase/server',()=>({createClient:()=>f.session}));
 vi.mock('@/lib/supabase/admin',()=>({createAdminClient:()=>f.configured?f.admin:null}));

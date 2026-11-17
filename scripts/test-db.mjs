@@ -318,5 +318,16 @@ const founderBoard=(await one('insert into boards(department_id,name) values($1,
 eq((await one('select count(*)::int n from columns where board_id=$1',[founderBoard])).n,0);
 await as(outsider);
 eq((await one('select count(*)::int n from departments where id=$1',[founderDep])).n,0);
+// 0017: fixed-window rate limiter, доступен только service_role.
+await db.exec('reset role');await db.exec('set role service_role');
+eq((await one('select check_rate_limit($1,$2,$3) as ok',['rl-test',3,60])).ok,true);
+eq((await one('select check_rate_limit($1,$2,$3) as ok',['rl-test',3,60])).ok,true);
+eq((await one('select check_rate_limit($1,$2,$3) as ok',['rl-test',3,60])).ok,true);
+eq((await one('select check_rate_limit($1,$2,$3) as ok',['rl-test',3,60])).ok,false);
+eq((await one('select check_rate_limit($1,$2,$3) as ok',['rl-other',3,60])).ok,true);
+eq((await one('select check_rate_limit($1,$2,$3) as ok',['rl-disabled',0,60])).ok,true);
+await as(owner);
+await denied('select check_rate_limit($1,$2,$3)',['rl-test',3,60]);
+eq((await one('select count(*)::int n from rate_limit_buckets')).n,0);
 console.log(`Database OK: ${migrations.length} migrations, ${checks} checks (roles, RLS, threads, mentions, read cursors, task conversion, checklist history, columns, files, summary).`);
 } finally {await db.close();}

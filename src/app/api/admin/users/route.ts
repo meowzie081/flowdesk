@@ -4,10 +4,13 @@ import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { provisionManagedAccount } from '@/lib/managed-accounts';
 import { sameOrigin } from '@/lib/http';
+import { checkRateLimit, tooManyRequests } from '@/lib/rate-limit';
 export async function POST(request:Request) {
  if(!sameOrigin(request))return NextResponse.json({error:'Недопустимый источник запроса'},{status:403});
  const raw=await request.json().catch(()=>null);
  const session=createClient();
+ const {data:{user}}=await session.auth.getUser();
+ if(user && !(await checkRateLimit(`admin-users:${user.id}`,10,60)))return tooManyRequests();
  const outcome=await provisionManagedAccount(raw,{
   currentUser:async()=>{const {data:{user}}=await session.auth.getUser();return user?.id??null},
   isOwner:async(departmentId,userId)=>{const {data,error}=await session.from('department_members').select('role').eq('department_id',departmentId).eq('user_id',userId).maybeSingle();return !error&&data?.role==='owner'},
