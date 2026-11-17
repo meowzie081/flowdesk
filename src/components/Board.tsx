@@ -4,9 +4,9 @@ import {trackEvent} from '@/lib/analytics-client';
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { z } from 'zod';
 import { createClient } from '@/lib/supabase/client';
-import { confettiBurst } from '@/lib/confetti';
 import TaskDetail from './TaskDetail';
 import UserName from './UserName';
+import Icon from './Icon';
 import ColumnSettings from './ColumnSettings';
 import { checklistProgress, columnLoad, type ChecklistItem } from '@/lib/collaboration';
 import { applyColumnChange, applyTaskChange, mergeFetchedTasks, type RealtimeChange } from '@/lib/board-sync';
@@ -113,8 +113,8 @@ export default function Board({
     const dx = flip.rect.left - next.left;
     const dy = flip.rect.top - next.top;
     if (dx || dy) el.animate(
-      [{ transform: `translate(${dx}px, ${dy}px) scale(1.03)` }, { transform: 'translate(0,0) scale(1)' }],
-      { duration: 420, easing: 'cubic-bezier(.22,1,.36,1)' },
+      [{ transform: `translate(${dx}px, ${dy}px)` }, { transform: 'translate(0,0)' }],
+      { duration: 300, easing: 'cubic-bezier(.2,.8,.2,1)' },
     );
   }, [tasks]);
 
@@ -220,6 +220,8 @@ export default function Board({
     return true;
   });
 
+  const todayISO = new Date().toISOString().slice(0, 10);
+
   async function addTask(columnId: string) {
     const parsed = taskSchema.safeParse({ title: newTitle[columnId] ?? '' });
     if (!parsed.success) return setError(tr('board.errTitle'));
@@ -275,11 +277,7 @@ export default function Board({
     trackEvent('task_moved',{source:'board'});
     const targetCol = columns.find((c) => c.id === columnId);
     const sourceCol = columns.find((c) => c.id === current.column_id);
-    if (targetCol?.is_done && !sourceCol?.is_done) {
-      const el = document.querySelector<HTMLElement>(`[data-task-id="${taskId}"]`);
-      if (el) { const r = el.getBoundingClientRect(); confettiBurst(r.left + r.width / 2, r.top + 10); }
-      pushToast(tr('board.toastDone', { column: targetCol.name }));
-    }
+    if (targetCol?.is_done && !sourceCol?.is_done) pushToast(tr('board.toastDone', { column: targetCol.name }));
   }
 
   async function removeTask(taskId: string) {
@@ -358,6 +356,17 @@ export default function Board({
             ))}
           </select>
         )}
+        {(query !== '' || priority !== 'all' || assignee !== 'all' || labelFilter !== 'all') && (
+          <span className="inline-flex items-center gap-2 rounded-lg bg-neutral-100 px-2.5 py-1.5 text-xs text-mute">
+            <span className="tabular-nums">{tr('board.found', { count: visible.length })}</span>
+            <button
+              className="font-medium text-ink transition-colors hover:text-orange-700"
+              onClick={() => { setQuery(''); setPriority('all'); setAssignee('all'); setLabelFilter('all'); }}
+            >
+              {tr('board.resetFilters')}
+            </button>
+          </span>
+        )}
         <a href={`/api/export?dep=${depId}`} className="btn ml-auto">
           {tr('board.exportCsv')}
         </a>
@@ -365,13 +374,13 @@ export default function Board({
       {error && <p className="mb-3 text-sm text-red-600">{error}</p>}
 
       <div className="flex gap-4 overflow-x-auto pb-4">
-        {columns.map((col) => (
+        {columns.map((col) => {
+          const colTasks = tasks.filter((t) => t.column_id === col.id);
+          const load = columnLoad(colTasks.length, col.wip_limit);
+          return (
           <section
             key={col.id}
-            style={{borderTopColor:col.color}}
-            className={`board-column w-72 shrink-0 p-3 transition ${
-              dragOver === col.id ? 'bg-neutral-200 ring-1 ring-ink' : 'bg-neutral-100'
-            }`}
+            className={`board-column w-72 shrink-0 p-3 ${dragOver === col.id ? 'board-column-drop' : ''}`}
             onDragOver={(e) => {
               if (!canWrite) return;
               e.preventDefault();
@@ -380,11 +389,12 @@ export default function Board({
             onDragLeave={() => setDragOver((c) => (c === col.id ? null : c))}
             onDrop={(e) => canWrite && dropOnColumn(e, col.id)}
           >
-            <h3 className="mb-3 text-sm font-medium">
-              {col.name}{' '}
-              <span className={columnLoad(tasks.filter(t=>t.column_id===col.id).length,col.wip_limit).exceeded ? 'text-red-600' : 'text-mute'}>{columnLoad(tasks.filter(t=>t.column_id===col.id).length,col.wip_limit).label}</span>
+            <h3 className="mb-3 flex items-center gap-2 text-[13px] font-medium">
+              <span aria-hidden className="h-2 w-2 shrink-0 rounded-full" style={{background: col.color}}/>
+              <span className="truncate">{col.name}</span>
+              <span className={`ml-auto shrink-0 rounded-full px-1.5 py-0.5 text-[11px] tabular-nums ${load.exceeded ? 'bg-red-500/10 text-red-600' : 'bg-neutral-200/60 text-mute'}`}>{load.label}</span>
             </h3>
-            {columnLoad(tasks.filter(t=>t.column_id===col.id).length,col.wip_limit).exceeded && <p className="mb-2 text-xs text-red-600">{tr('board.wipExceeded')}</p>}
+            {load.exceeded && <p className="mb-2 text-xs text-red-600">{tr('board.wipExceeded')}</p>}
             <ul className="flex min-h-8 flex-col gap-2">
               {visible
                 .filter((t) => t.column_id === col.id)
@@ -394,30 +404,35 @@ export default function Board({
                     key={t.id}
                     data-task-id={t.id}
                     data-priority={t.priority}
-                    className={`card task-card p-3 ${canWrite ? 'cursor-grab active:cursor-grabbing' : ''}`}
+                    className={`task-card p-3 ${canWrite ? 'cursor-grab active:cursor-grabbing' : ''}`}
                     draggable={canWrite}
                     onDragStart={(e) => e.dataTransfer.setData('text/plain', t.id)}
                     onDrop={(e) => canWrite && dropOnCard(e, t)}
                   >
                     <button
-                      className="block w-full text-left text-sm font-medium hover:underline"
+                      className="block w-full text-left text-sm font-medium leading-snug"
                       onClick={() => setOpenTask(t)}
                     >
                       {t.title}
                     </button>
-                    <p className="mt-1 text-xs text-mute">
-                      {tr(`board.priority.${t.priority}`)}
-                      {t.due_date && ` · ${tr('board.duePrefix')} ${new Date(t.due_date).toLocaleDateString(lang === 'ru' ? 'ru-RU' : 'en-US')}`}
+                    <p className="mt-1.5 flex flex-wrap items-center gap-x-2.5 gap-y-1 text-xs text-mute">
+                      <span className="inline-flex items-center gap-1.5">
+                        <span aria-hidden className={`priority-dot priority-dot-${t.priority}`}/>
+                        {tr(`board.priority.${t.priority}`)}
+                      </span>
+                      {t.due_date && (
+                        <span className={`inline-flex items-center gap-1 tabular-nums ${t.due_date < todayISO && !col.is_done ? 'text-red-600' : ''}`}>
+                          <Icon name="calendar" width={12} height={12}/>
+                          {new Date(t.due_date).toLocaleDateString(lang === 'ru' ? 'ru-RU' : 'en-US')}
+                        </span>
+                      )}
                       {t.assignee_id && (
-                        <>
-                          {' · '}
-                          <UserName look={memberById.get(t.assignee_id) ?? { name: tr('board.assigneeFallback') }} />
-                        </>
+                        <UserName look={memberById.get(t.assignee_id) ?? { name: tr('board.assigneeFallback') }} />
                       )}
                     </p>
                     {readiness[t.id]>0&&<p className="mt-2 text-xs text-orange-600">{tr('board.waitingTasks', { count: readiness[t.id] })}</p>}
                     {t.blocked_reason && <p className="mt-2 rounded-lg bg-red-500/10 px-2 py-1 text-xs text-red-600">{tr('board.blocker', { reason: t.blocked_reason })}</p>}
-                    {t.task_checklist?.length > 0 && <div className="mt-2"><div className="mb-1 flex justify-between text-xs text-mute"><span>{tr('board.checklist')}</span><span>{checklistProgress(t.task_checklist).done}/{t.task_checklist.length}</span></div><div className="h-1.5 rounded-full bg-neutral-200"><div className="h-full rounded-full bg-orange-500" style={{width:`${checklistProgress(t.task_checklist).percent}%`}}/></div></div>}
+                    {t.task_checklist?.length > 0 && <div className="mt-2.5"><div className="mb-1 flex justify-between text-xs text-mute"><span>{tr('board.checklist')}</span><span className="tabular-nums">{checklistProgress(t.task_checklist).done}/{t.task_checklist.length}</span></div><div className="h-1 rounded-full bg-neutral-200/70"><div className="h-full rounded-full bg-orange-500" style={{width:`${checklistProgress(t.task_checklist).percent}%`}}/></div></div>}
                     {(taskLabels[t.id] ?? []).length > 0 && (
                       <div className="mt-1 flex flex-wrap gap-1">
                         {(taskLabels[t.id] ?? []).map((id) => (
@@ -433,7 +448,7 @@ export default function Board({
                     {canWrite && (
                       <div className="mt-2 flex items-center gap-2">
                         <select
-                          className="rounded border border-line bg-white px-1 py-0.5 text-xs"
+                          className="cursor-pointer rounded-md border border-line bg-white px-1.5 py-1 text-xs text-mute transition-colors hover:border-neutral-200 hover:text-ink"
                           value={t.column_id}
                           onChange={(e) => moveTask(t.id, e.target.value)}
                           aria-label={tr('board.moveToColumn')}
@@ -445,7 +460,7 @@ export default function Board({
                           ))}
                         </select>
                         <button
-                          className="ml-auto text-xs text-mute hover:text-ink"
+                          className="ml-auto rounded-md px-1.5 py-1 text-xs text-mute transition-colors hover:bg-red-500/10 hover:text-red-600"
                           onClick={() => removeTask(t.id)}
                         >
                           {tr('board.archive')}
@@ -455,6 +470,7 @@ export default function Board({
                   </li>
                 ))}
             </ul>
+            {colTasks.length === 0 && <p className="rounded-lg border border-dashed border-line px-3 py-4 text-center text-xs text-mute">{tr('board.dropHint')}</p>}
             {canWrite && (
               <form
                 className="mt-3 flex gap-2"
@@ -473,7 +489,8 @@ export default function Board({
               </form>
             )}
           </section>
-        ))}
+          );
+        })}
       </div>
 
       {openTask && (
@@ -495,7 +512,10 @@ export default function Board({
 
       <div className="pointer-events-none fixed bottom-4 left-1/2 z-50 flex -translate-x-1/2 flex-col items-center gap-2" role="status" aria-live="polite">
         {toasts.map((toast) => (
-          <div key={toast.id} className="toast-item rounded-full bg-ink px-4 py-2 text-sm text-paper shadow-lg">{toast.text}</div>
+          <div key={toast.id} className="toast-item flex items-center gap-2 rounded-xl border border-line bg-white px-3.5 py-2.5 text-sm shadow-lg">
+            <svg className="shrink-0 text-orange-600" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden><path d="M20 6 9 17l-5-5"/></svg>
+            {toast.text}
+          </div>
         ))}
       </div>
     </div>

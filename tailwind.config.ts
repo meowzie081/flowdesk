@@ -3,6 +3,8 @@ import type { Config } from 'tailwindcss';
 const config: Config = {
   darkMode: 'class',
   content: ['./src/**/*.{ts,tsx}'],
+  // Классы собираются динамически (priority-dot-${priority}) — без safelist Tailwind их вычищает.
+  safelist: ['priority-dot-high', 'priority-dot-medium', 'priority-dot-low'],
   theme: {
     extend: {
       colors: {

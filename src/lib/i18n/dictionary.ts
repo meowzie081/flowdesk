@@ -160,6 +160,9 @@ export const ru: Record<string, string> = {
   'board.toastArchived': 'Задача отправлена в архив',
   'board.loading': 'Загрузка доски…',
   'board.notFound': 'Доска не найдена.',
+  'board.dropHint': 'Перетащите карточку или создайте задачу',
+  'board.found': 'Найдено: {count}',
+  'board.resetFilters': 'Сбросить',
 
   'column.settings': 'Настроить колонки и лимиты задач',
   'column.done': 'завершено',
@@ -610,6 +613,9 @@ export const en: Record<string, string> = {
   'board.toastArchived': 'Task archived',
   'board.loading': 'Loading board…',
   'board.notFound': 'Board not found.',
+  'board.dropHint': 'Drag a card here or create a task',
+  'board.found': 'Found: {count}',
+  'board.resetFilters': 'Reset',
 
   'column.settings': 'Configure columns and task limits',
   'column.done': 'done',
