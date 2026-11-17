@@ -1,0 +1,43 @@
+name: Scheduled workers
+on:
+  schedule:
+    - cron: '*/5 * * * *'
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: flowdesk-cron
+  cancel-in-progress: false
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    env:
+      BASE_URL: ${{ vars.FLOWDESK_PUBLIC_URL || 'https://flowdesk-alpha-teal.vercel.app' }}
+      CRON_SECRET: ${{ secrets.NOTIFICATION_CRON_SECRET }}
+    steps:
+      - name: Guard configuration
+        id: guard
+        shell: bash
+        run: |
+          if [ -z "$CRON_SECRET" ]; then
+            echo "NOTIFICATION_CRON_SECRET не задан — запуск пропущен. Добавьте секрет репозитория (Settings → Secrets and variables → Actions)." >&2
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+          fi
+      - name: Recurring tasks
+        if: steps.guard.outputs.skip != 'true'
+        shell: bash
+        run: |
+          curl --fail --show-error --silent --max-time 60 \
+            -X POST "${BASE_URL%/}/api/recurrence/run" \
+            -H "Authorization: Bearer $CRON_SECRET" \
+            -H "Content-Type: application/json" -d '{}'
+          echo
+      - name: Notification delivery
+        if: steps.guard.outputs.skip != 'true'
+        shell: bash
+        run: |
+          curl --fail --show-error --silent --max-time 60 \
+            -X POST "${BASE_URL%/}/api/notifications/dispatch" \
+            -H "Authorization: Bearer $CRON_SECRET" \
+            -H "Content-Type: application/json" -d '{}'
+          echo

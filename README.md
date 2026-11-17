@@ -156,7 +156,7 @@ docker compose up --build     # http://<ip-мака>:3000
 
 ## Деплой
 
-Текущая опубликованная схема: **Vercel + Supabase** (Auth, PostgreSQL, Storage, Realtime). Повторяющиеся задачи запускает Supabase Cron, вызывающий `public.run_due_recurring()` каждую минуту. Постоянный Docker worker на Vercel не нужен.
+Текущая опубликованная схема: **Vercel + Supabase** (Auth, PostgreSQL, Storage, Realtime). Повторяющиеся задачи и доставка уведомлений запускаются планировщиком: GitHub Actions cron (`.github/workflows/cron.yml`, раз в 5 минут, без VPS) либо Supabase Cron (`public.run_due_recurring()`). Постоянный Docker worker на Vercel не нужен. Настройка планировщика: [docs/NOTIFICATIONS.md](docs/NOTIFICATIONS.md).
 
 В Vercel перед сборкой настроены проверка типов, unit-тесты и проверки БД. Для нового кода сначала применяйте миграцию, затем отправляйте изменения в GitHub. Docker Compose и Caddy остаются альтернативой для VPS. Инструкция: [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md).
 

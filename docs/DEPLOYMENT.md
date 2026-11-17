@@ -6,7 +6,7 @@
 
 ## Текущая схема Vercel + Supabase
 
-Веб-приложение работает на Vercel, данные, Auth, Storage и Realtime — в Supabase. Supabase Cron вызывает `public.run_due_recurring()` каждую минуту. Для этой схемы не нужен постоянный Docker scheduler. Build Command в Vercel: `npm run typecheck && npm test && npm run test:db && npm run build`.
+Веб-приложение работает на Vercel, данные, Auth, Storage и Realtime — в Supabase. Периодические повторы `run_due_recurring()` и доставка уведомлений запускаются планировщиком: GitHub Actions cron (`.github/workflows/cron.yml`, раз в 5 минут, без VPS) либо Supabase Cron — настройка в [NOTIFICATIONS.md](NOTIFICATIONS.md). Постоянный Docker scheduler для этой схемы не нужен. Build Command в Vercel: `npm run typecheck && npm test && npm run test:db && npm run build`.
 
 Инструкции ниже для VPS остаются альтернативным вариантом размещения.
 
@@ -96,6 +96,6 @@ git push
 
 ## Vercel и планировщик
 
-В текущей Vercel-установке постоянный Docker `scheduler` заменён Supabase Cron. Не запускайте второй планировщик без необходимости. Для автоматической публикации используйте подключённый GitHub-репозиторий и Build Command с проверками, указанный выше. VPS workflow нужен только при выборе VPS.
+В текущей Vercel-установке постоянный Docker `scheduler` не нужен. Периодические задачи (повторы `run_due_recurring()` и доставка уведомлений) запускает планировщик: GitHub Actions workflow `.github/workflows/cron.yml` (раз в 5 минут, без VPS) либо Supabase Cron. Секрет `NOTIFICATION_CRON_SECRET` задаётся и в Vercel, и в GitHub Secrets; service-role ключ остаётся только в Vercel. Подробности и ограничение «один планировщик» — в [NOTIFICATIONS.md](NOTIFICATIONS.md). Для автоматической публикации используйте подключённый GitHub-репозиторий и Build Command с проверками, указанный выше. VPS workflow нужен только при выборе VPS.
 
 Источники: https://docs.github.com/en/actions ; https://docs.docker.com/reference/cli/docker/compose/up/ ; https://caddyserver.com/docs/quick-starts/reverse-proxy

@@ -7,7 +7,7 @@ const PUBLIC_PATHS = ['/login', '/auth', '/telegram'];
 type CookieToSet = { name: string; value: string; options: CookieOptions };
 
 export async function middleware(request: NextRequest) {
-  if(['/api/telegram/webhook','/api/notifications/dispatch'].includes(request.nextUrl.pathname))return NextResponse.next({request});
+  if(['/api/telegram/webhook','/api/notifications/dispatch','/api/recurrence/run'].includes(request.nextUrl.pathname))return NextResponse.next({request});
   let response = NextResponse.next({ request });
 
   const supabase = createServerClient(

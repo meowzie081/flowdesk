@@ -99,6 +99,26 @@ select cron.schedule(
 
 Cron повторов задач `run_due_recurring()` оставьте: это **отдельная** задача. При смене домена обновите адрес и `FLOWDESK_PUBLIC_URL`. При смене секрета синхронно обновите Vault и Vercel. Нельзя вызывать защищённый endpoint из обычной вкладки без заголовка.
 
+### GitHub Actions (без VPS)
+
+Workflow `.github/workflows/cron.yml` раз в 5 минут вызывает два защищённых endpoint по HTTPS:
+
+- `POST /api/recurrence/run` — создаёт задачи по правилам повторов (`run_due_recurring()`);
+- `POST /api/notifications/dispatch` — отправляет накопленные письма и push.
+
+Оба проверяют один и тот же секрет `NOTIFICATION_CRON_SECRET` (заголовок `Authorization: Bearer …`). Service-role ключ Supabase остаётся только в серверных переменных Vercel; в GitHub хранится лишь cron-секрет. GET не запускает обработчики.
+
+Настройка:
+
+1. В Vercel → Settings → Environment Variables → **Production** задайте `NOTIFICATION_CRON_SECRET` (32–256 букв, цифр, `_` или `-`) и `SUPABASE_SERVICE_ROLE_KEY`, затем Redeploy. Без секрета endpoint отвечает 503 «ещё не настроен».
+2. В GitHub → Settings → Secrets and variables → Actions → **Secrets** добавьте `NOTIFICATION_CRON_SECRET` с тем же значением.
+3. Необязательно: в **Variables** задайте `FLOWDESK_PUBLIC_URL` (HTTPS origin без завершающего пути). По умолчанию используется `https://flowdesk-alpha-teal.vercel.app`.
+4. Запустите вручную: Actions → **Scheduled workers** → Run workflow. Убедитесь, что оба шага вернули 200 и счётчики.
+
+Ограничения бесплатного планировщика GitHub: минимальный интервал — 5 минут, возможны задержки при высокой нагрузке; расписание работает только на ветке по умолчанию и отключается после 60 дней без активности репозитория. Доставка обрабатывает до трёх заданий за вызов, поэтому при интервале 5 минут пропускная способность ниже, чем у Cron раз в минуту. Для больших объёмов используйте Supabase Cron (`* * * * *`) или отдельный worker.
+
+Одновременно должен работать **только один** планировщик (GitHub Actions, Supabase Cron или VPS worker). Обработчики идемпотентны (`FOR UPDATE SKIP LOCKED`, уникальный token очереди, `recurring_occurrences ON CONFLICT`), но параллельные планировщики ни к чему. Если переходите на GitHub Actions — удалите задачи `cron.schedule` в Supabase и остановите VPS worker.
+
 ### Docker / VPS
 
 ```bash
