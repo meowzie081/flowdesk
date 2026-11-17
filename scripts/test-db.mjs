@@ -307,5 +307,16 @@ for(let i=0;i<5;i++)await db.query("select register_push_device($1,$2,'key','aut
 await db.query("select register_push_device($1,'https://fcm.googleapis.com/device/0','newkey','auth')",[member]);
 await denied("select register_push_device($1,'https://fcm.googleapis.com/device/5','key','auth')",[member]);
 await denied("select register_push_device($1,'https://fcm.googleapis.com/device/0','key','auth')",[owner]);
+// Регрессия 0016: создание отдела под authenticated с RETURNING, как это делает приложение.
+const founder=uid(5);
+await db.exec('reset role');
+await db.query('insert into auth.users(id,email) values($1,$2)',[founder,founder+'@test.local']);
+await as(founder);
+const founderDep=(await one('insert into departments(name,created_by) values($1,$2) returning id',['Founder team',founder])).id;
+await db.query('insert into department_members(department_id,user_id,role) values($1,$2,$3)',[founderDep,founder,'owner']);
+const founderBoard=(await one('insert into boards(department_id,name) values($1,$2) returning id',[founderDep,'Founder board'])).id;
+eq((await one('select count(*)::int n from columns where board_id=$1',[founderBoard])).n,0);
+await as(outsider);
+eq((await one('select count(*)::int n from departments where id=$1',[founderDep])).n,0);
 console.log(`Database OK: ${migrations.length} migrations, ${checks} checks (roles, RLS, threads, mentions, read cursors, task conversion, checklist history, columns, files, summary).`);
 } finally {await db.close();}
