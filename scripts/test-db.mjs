@@ -380,5 +380,16 @@ await db.exec('reset role');await db.exec('set role service_role');
 await db.query('update subscriptions set plan_id=$1 where organization_id=$2',['team',ws.organization_id]);
 await as(owner);
 eq(typeof (await one('insert into boards(department_id,name) values($1,$2) returning id',[orgDep,'Third board team'])).id,'string',true);
+// 0022: org_usage отдаёт использование тарифа и закрыт от не-участников.
+const usage=await one('select * from org_usage($1)',[ws.organization_id]);
+eq(usage.member_count,5);
+eq(usage.board_count,3);
+eq(usage.plan_id,'team');
+eq(usage.max_members,500);
+eq(usage.max_boards,100);
+eq(usage.price_per_seat_month,299);
+await as(outsider);
+await denied('select * from org_usage($1)',[ws.organization_id]);
+await as(owner);
 console.log(`Database OK: ${migrations.length} migrations, ${checks} checks (roles, RLS, threads, mentions, read cursors, task conversion, checklist history, columns, files, summary).`);
 } finally {await db.close();}

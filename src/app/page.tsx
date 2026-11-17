@@ -1,69 +1,10 @@
 import Onboarding from '@/components/Onboarding';
 import Link from 'next/link';
-import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
 import UserMenu from '@/components/UserMenu';
+import CreateDepartmentForm from '@/components/CreateDepartmentForm';
 import { lookFromRow } from '@/lib/profile';
-import { pickOwnedOrgId } from '@/lib/organizations';
-
-async function createDepartment(formData: FormData) {
-  'use server';
-  const name = String(formData.get('name') ?? '').trim();
-  if (name.length < 2 || name.length > 80) return;
-  const supabase = createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) return;
-
-  // Организации появились в миграциях 0020/0021: если их ещё нет в БД,
-  // запрос упадёт и мы создаём отдел по старой схеме.
-  const { data: orgRows, error: orgError } = await supabase
-    .from('org_members')
-    .select('organization_id, role')
-    .eq('user_id', user.id);
-  const orgLayerReady = !orgError;
-  const ownedOrgId = orgLayerReady ? pickOwnedOrgId(orgRows ?? []) : null;
-
-  if (orgLayerReady && !ownedOrgId) {
-    const { error } = await supabase.rpc('create_organization_with_workspace', { p_org_name: name });
-    if (error) throw new Error(`Не удалось создать рабочее пространство: ${error.message}`);
-    revalidatePath('/');
-    return;
-  }
-
-  const { data: dep, error: depError } = await supabase
-    .from('departments')
-    .insert(ownedOrgId ? { name, created_by: user.id, organization_id: ownedOrgId } : { name, created_by: user.id })
-    .select('id')
-    .single();
-  if (depError || !dep) throw new Error(`Не удалось создать отдел: ${depError?.message}`);
-
-  const { error: memError } = await supabase
-    .from('department_members')
-    .insert({ department_id: dep.id, user_id: user.id, role: 'owner' });
-  if (memError) throw new Error(`Не удалось добавить владельца: ${memError.message}`);
-
-  const { data: board, error: boardError } = await supabase
-    .from('boards')
-    .insert({ department_id: dep.id, name: 'Основная доска' })
-    .select('id')
-    .single();
-  if (boardError || !board) throw new Error(`Не удалось создать доску: ${boardError?.message}`);
-
-  // is_done указан у каждой колонки: при разных наборах полей в одном запросе
-  // отсутствующие значения становятся NULL и ломают NOT NULL.
-  const { error: colError } = await supabase.from('columns').insert([
-    { board_id: board.id, name: 'Backlog', position: 0, is_done: false },
-    { board_id: board.id, name: 'В работе', position: 1, is_done: false },
-    { board_id: board.id, name: 'Ревью', position: 2, is_done: false },
-    { board_id: board.id, name: 'Готово', position: 3, is_done: true },
-  ]);
-  if (colError) throw new Error(`Не удалось создать колонки: ${colError.message}`);
-
-  revalidatePath('/');
-}
 
 export default async function Home() {
   const supabase = createClient();
@@ -99,10 +40,10 @@ export default async function Home() {
           <li className="text-sm text-mute">Пока нет отделов — создайте первый.</li>
         )}
       </ul>
-      <form action={createDepartment} className="mt-8 flex gap-2">
-        <input name="name" className="input" placeholder="Название отдела" required minLength={2} maxLength={80} />
-        <button className="btn-solid">Создать</button>
-      </form>
+      <CreateDepartmentForm />
+      <Link href="/org" className="mt-4 inline-block text-sm font-medium text-orange-600 hover:underline">
+        Организация и тариф →
+      </Link>
     </main>
   );
 }
