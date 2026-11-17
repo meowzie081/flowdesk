@@ -92,10 +92,16 @@ git push
 
 ## 6. Приёмка
 
-Проверьте `/api/health`, HTTPS, регистрацию/вход, Google OAuth, две сессии чата, приватность файлов другого отдела, создание пользователя владельцем, выполнение повторения scheduler и GA4 Realtime. `/api/health` подтверждает работу web-процесса, а не всей цепочки Supabase/Storage/AI.
+Проверьте `/api/health`, HTTPS, регистрацию/вход, Google OAuth, две сессии чата, приватность файлов другого отдела, создание пользователя владельцем, выполнение повторения scheduler и GA4 Realtime. `/api/health` подтверждает работу web-процесса и доступность базы Supabase, но не всей цепочки Storage/AI.
 
 ## Vercel и планировщик
 
 В текущей Vercel-установке постоянный Docker `scheduler` не нужен. Периодические задачи (повторы `run_due_recurring()` и доставка уведомлений) запускает планировщик: GitHub Actions workflow `.github/workflows/cron.yml` (раз в 5 минут, без VPS) либо Supabase Cron. Секрет `NOTIFICATION_CRON_SECRET` задаётся и в Vercel, и в GitHub Secrets; service-role ключ остаётся только в Vercel. Подробности и ограничение «один планировщик» — в [NOTIFICATIONS.md](NOTIFICATIONS.md). Для автоматической публикации используйте подключённый GitHub-репозиторий и Build Command с проверками, указанный выше. VPS workflow нужен только при выборе VPS.
+
+## Мониторинг ошибок и здоровья
+
+Sentry (`@sentry/nextjs`) подключён для сервера, клиента и edge-middleware. Отправляются только ошибки (`tracesSampleRate: 0` — бесплатный тариф). DSN зашит в `sentry.shared.ts` (это публичный ключ приёма, не секрет); переменная `NEXT_PUBLIC_SENTRY_DSN` переопределяет его, пустая строка отключает Sentry. `environment` и `release` берутся из `VERCEL_ENV` и `VERCEL_GIT_COMMIT_SHA` автоматически. Source maps не загружаются: для этого нужны `SENTRY_AUTH_TOKEN`, `SENTRY_ORG`, `SENTRY_PROJECT` и включение `sourcemaps` в `next.config.mjs`.
+
+`/api/health` проверяет не только web-процесс, но и доступность Supabase (лёгкий запрос с таймаутом 5 с): `200 {"ok":true,"database":"up"}` либо `503 {"ok":false,"database":"down"}`. Без настроенного Supabase возвращает `200` с `database:"unconfigured"`.
 
 Источники: https://docs.github.com/en/actions ; https://docs.docker.com/reference/cli/docker/compose/up/ ; https://caddyserver.com/docs/quick-starts/reverse-proxy
