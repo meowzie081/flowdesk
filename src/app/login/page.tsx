@@ -79,6 +79,7 @@ export default function LoginPage() {
         <input
           className="input"
           type="password"
+          aria-label="Пароль"
           placeholder="Пароль"
           value={password}
           onChange={(e) => setPassword(e.target.value)}

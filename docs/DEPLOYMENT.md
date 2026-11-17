@@ -104,4 +104,8 @@ Sentry (`@sentry/nextjs`) подключён для сервера, клиент
 
 `/api/health` проверяет не только web-процесс, но и доступность Supabase (лёгкий запрос с таймаутом 5 с): `200 {"ok":true,"database":"up"}` либо `503 {"ok":false,"database":"down"}`. Без настроенного Supabase возвращает `200` с `database:"unconfigured"`.
 
+## E2E-смоук (Playwright)
+
+`npm run test:e2e` прогоняет вход и цикл задачи (создание → перемещение → архивация) в headless Chromium против `http://localhost:3000`; dev-сервер поднимается автоматически, уже запущенный переиспользуется. Тестовый аккаунт берётся из `.env` (`E2E_EMAIL`, `E2E_PASSWORD`); без них тесты пропускаются. Dev-сервер смотрит в рабочий Supabase — используйте отдельный тестовый аккаунт и отдел. Против другого адреса: `E2E_BASE_URL=https://… npm run test:e2e`. В CI смоук пока не включён: нужны секреты тестового аккаунта и установка браузера.
+
 Источники: https://docs.github.com/en/actions ; https://docs.docker.com/reference/cli/docker/compose/up/ ; https://caddyserver.com/docs/quick-starts/reverse-proxy

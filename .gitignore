@@ -13,3 +13,5 @@ release.tar.gz
 
 # Desktop installers
 desktop/dist/
+playwright-report/
+test-results/
